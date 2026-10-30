@@ -1,0 +1,25 @@
+# -------------------------------------------------------------
+# FRONTEND REQUIREMENTS & DEPENDENCIES
+# -------------------------------------------------------------
+# Note: In standard JavaScript/Vue.js ecosystems, dependencies
+# are managed via npm using `package.json` (not pip).
+#
+# Prerequisites:
+#   Node.js >= 18.0.0
+#   npm >= 9.0.0
+#
+# Production Dependencies (npm install):
+#   vue >= 3.5.0
+#   vue-router >= 4.4.0
+#   pinia >= 2.2.0
+#
+# Development & Build Tools:
+#   vite >= 6.0.0
+#   @vitejs/plugin-vue >= 5.2.0
+# -------------------------------------------------------------
+# Run commands:
+#   npm install
+#   npm run dev      -> Starts local dev server at http://localhost:5173
+#   npm run build    -> Produces production bundle in dist/
+# -------------------------------------------------------------
+

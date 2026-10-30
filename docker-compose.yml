@@ -1,0 +1,30 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: wordladder-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: wordladder-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - WL_REDIS_URL=redis://redis:6379/0
+      - WL_REDIS_ENABLED=true
+      - WL_DATABASE_URL=sqlite+aiosqlite:///app/wordladder.db
+    volumes:
+      - ./backend/data:/app/data
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+
