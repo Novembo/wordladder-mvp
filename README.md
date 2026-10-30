@@ -137,3 +137,6 @@ docker compose up --build
 - **IA pédagogique** : En mode Solo, l'ordinateur adapte sa stratégie (de coups basiques à coups anticipés) selon le niveau choisi.
 - **Résilience hors-ligne / Réseau faible** : Fallback mémoire automatique si Redis est indisponible, et possibilité de téléchargement de pack JSON client.
 
+## Licence
+
+Ce projet est distribué sous licence [MIT](LICENSE).
