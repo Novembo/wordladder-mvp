@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { useAuthStore } from './auth'
 
 const API_BASE = '/v1'
 
@@ -64,13 +65,18 @@ export const useGameStore = defineStore('game', () => {
     wordHistory.value = []
 
     try {
+      const auth = useAuthStore()
+      await auth.initialize()
       lang.value = selectedLang
       level.value = selectedLevel
       mode.value = selectedMode
 
       const res = await fetch(`${API_BASE}/matches`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(auth.csrfToken ? { 'X-CSRF-Token': auth.csrfToken } : {}),
+        },
         body: JSON.stringify({
           lang: selectedLang,
           level: selectedLevel,
@@ -110,7 +116,10 @@ export const useGameStore = defineStore('game', () => {
     try {
       const res = await fetch(`${API_BASE}/matches/${matchId.value}/moves`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(useAuthStore().csrfToken ? { 'X-CSRF-Token': useAuthStore().csrfToken } : {}),
+        },
         body: JSON.stringify({
           player: activePlayer,
           word: cleaned
@@ -148,19 +157,24 @@ export const useGameStore = defineStore('game', () => {
     try {
       const res = await fetch(`${API_BASE}/matches/${matchId.value}/timeout`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(useAuthStore().csrfToken ? { 'X-CSRF-Token': useAuthStore().csrfToken } : {}),
+        },
         body: JSON.stringify({ player: toMove.value })
       })
 
-      if (res.ok) {
-        const data = await res.json()
-        applyState(data)
-        if (data.current_word && !data.finished && data.event.includes('part_')) {
-          wordHistory.value.push({ word: data.current_word, player: -1 })
-        }
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.detail?.message || 'Impossible de déclarer la fin du temps')
+      }
+
+      applyState(data)
+      if (data.current_word && !data.finished && data.event.includes('part_')) {
+        wordHistory.value.push({ word: data.current_word, player: -1 })
       }
     } catch (e) {
-      console.warn('Timeout declaration failed:', e)
+      triggerError(e instanceof Error ? e.message : 'Impossible de déclarer la fin du temps')
     }
   }
 
@@ -170,15 +184,17 @@ export const useGameStore = defineStore('game', () => {
       const res = await fetch(`${API_BASE}/matches/${matchId.value}/hint`, {
         method: 'POST'
       })
-      if (res.ok) {
-        const data = await res.json()
-        currentHint.value = data
-        return data
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.detail?.message || 'Impossible de récupérer un indice')
       }
+
+      currentHint.value = data
+      return data
     } catch (e) {
-      console.warn('Hint request failed:', e)
+      triggerError(e instanceof Error ? e.message : 'Impossible de récupérer un indice')
+      return null
     }
-    return null
   }
 
   function applyState(data) {

@@ -1,6 +1,11 @@
 """SQLAlchemy async engine and session management."""
 from __future__ import annotations
 
+from pathlib import Path
+
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -23,6 +28,26 @@ async def get_db():
 
 
 async def init_db():
-    """Create all tables (dev convenience — use Alembic in production)."""
+    """Upgrade the database to the latest Alembic revision."""
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        def migrate(connection):
+            from app import models  # noqa: F401
+
+            alembic_cfg = Config(str(Path(__file__).resolve().parent.parent / "alembic.ini"))
+            alembic_cfg.attributes["connection"] = connection
+            tables = set(inspect(connection).get_table_names())
+            required_legacy_tables = {
+                "words",
+                "graph_edges",
+                "match_records",
+                "move_records",
+            }
+
+            if (
+                "alembic_version" not in tables
+                and required_legacy_tables.issubset(tables)
+            ):
+                command.stamp(alembic_cfg, "280b92e91b41")
+            command.upgrade(alembic_cfg, "head")
+
+        await conn.run_sync(migrate)

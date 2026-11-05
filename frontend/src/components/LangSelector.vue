@@ -109,7 +109,7 @@ const levels = [
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--motion-interactive);
 }
 
 .pill-btn:hover {
@@ -144,7 +144,7 @@ const levels = [
   border-radius: var(--radius-md);
   text-align: left;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--motion-interactive);
 }
 
 .level-card:hover {
@@ -190,4 +190,3 @@ const levels = [
   }
 }
 </style>
-

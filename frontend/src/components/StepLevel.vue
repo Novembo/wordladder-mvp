@@ -54,33 +54,35 @@ const levels = [
       <p class="step-sub">Sélectionne la difficulté et le temps accordé à chaque tour.</p>
     </div>
 
-    <div class="levels-list">
-      <div
+    <div class="levels-list" role="group" aria-label="Niveau de difficulté">
+      <button
         v-for="lvl in levels"
         :key="lvl.id"
+        type="button"
         class="level-card"
         :class="[lvl.colorClass, { active: modelValue === lvl.id }]"
+        :aria-pressed="modelValue === lvl.id"
         @click="emit('update:modelValue', lvl.id)"
       >
-        <div class="level-icon-wrap">
+        <span class="level-icon-wrap">
           <span class="level-emoji">{{ lvl.icon }}</span>
-        </div>
+        </span>
 
-        <div class="level-body">
-          <div class="level-top-row">
-            <h3 class="level-name">{{ lvl.name }}</h3>
+        <span class="level-body">
+          <span class="level-top-row">
+            <span class="level-name" role="heading" aria-level="3">{{ lvl.name }}</span>
             <span class="level-time-pill">⏱️ {{ lvl.time }}</span>
-          </div>
-          <div class="level-meta">
+          </span>
+          <span class="level-meta">
             <span class="level-letters-tag">📏 {{ lvl.letters }}</span>
             <span class="level-desc">{{ lvl.desc }}</span>
-          </div>
-        </div>
+          </span>
+        </span>
 
-        <div class="choice-radio" :class="{ checked: modelValue === lvl.id }">
+        <span class="choice-radio" :class="{ checked: modelValue === lvl.id }" aria-hidden="true">
           ✓
-        </div>
-      </div>
+        </span>
+      </button>
     </div>
 
     <div class="step-actions">
@@ -157,7 +159,11 @@ const levels = [
   border: 2px solid var(--border-color);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+  transition: var(--motion-interactive);
   position: relative;
   user-select: none;
 }
@@ -173,6 +179,10 @@ const levels = [
   box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
 }
 
+.level-card:focus-visible {
+  outline-offset: 4px;
+}
+
 .level-icon-wrap {
   width: 48px;
   height: 48px;
@@ -186,6 +196,7 @@ const levels = [
 }
 
 .level-body {
+  min-width: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -197,6 +208,7 @@ const levels = [
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .level-name {
@@ -230,6 +242,7 @@ const levels = [
   font-size: 0.85rem;
   color: var(--text-muted);
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .choice-radio {
@@ -244,7 +257,7 @@ const levels = [
   font-size: 0.9rem;
   font-weight: 800;
   flex-shrink: 0;
-  transition: all 0.2s ease;
+  transition: var(--motion-interactive);
 }
 
 .choice-radio.checked {
@@ -266,6 +279,11 @@ const levels = [
 }
 
 @media (max-width: 520px) {
+  .step-card {
+    padding: 1.5rem 1rem;
+    gap: 1.25rem;
+  }
+
   .step-actions {
     flex-direction: column-reverse;
   }
@@ -273,5 +291,40 @@ const levels = [
     width: 100%;
   }
 }
-</style>
 
+@media (max-width: 380px) {
+  .level-card {
+    display: grid;
+    grid-template-columns: 2.5rem minmax(0, 1fr) 1.75rem;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    align-items: start;
+  }
+
+  .level-icon-wrap {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .level-body {
+    display: contents;
+  }
+
+  .level-top-row {
+    grid-column: 2;
+    grid-row: 1;
+    align-content: center;
+  }
+
+  .level-meta {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .choice-radio {
+    grid-column: 3;
+    grid-row: 1;
+    align-self: center;
+  }
+}
+</style>

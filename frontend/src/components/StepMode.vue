@@ -17,42 +17,46 @@ const emit = defineEmits(['update:modelValue', 'next', 'back'])
       <p class="step-sub">Choisis ton aventure : seul contre l'ordinateur ou en duel d'amis !</p>
     </div>
 
-    <div class="modes-grid">
+    <div class="modes-grid" role="group" aria-label="Mode de jeu">
       <!-- Solo Card -->
-      <div
+      <button
+        type="button"
         class="choice-card"
         :class="{ active: modelValue === 'solo' }"
+        :aria-pressed="modelValue === 'solo'"
         @click="emit('update:modelValue', 'solo')"
       >
-        <div class="choice-icon-wrap bot-gradient">
+        <span class="choice-icon-wrap bot-gradient">
           <span class="choice-emoji">🤖</span>
-        </div>
-        <div class="choice-body">
-          <h3 class="choice-title">Solo vs Robot</h3>
-          <p class="choice-desc">Entraîne-toi tranquillement contre notre robot malicieux Antigravity.</p>
-        </div>
-        <div class="choice-radio" :class="{ checked: modelValue === 'solo' }">
+        </span>
+        <span class="choice-body">
+          <span class="choice-title" role="heading" aria-level="3">Solo vs Robot</span>
+          <span class="choice-desc">Entraîne-toi tranquillement contre notre robot malicieux Antigravity.</span>
+        </span>
+        <span class="choice-radio" :class="{ checked: modelValue === 'solo' }" aria-hidden="true">
           ✓
-        </div>
-      </div>
+        </span>
+      </button>
 
       <!-- Duo Card -->
-      <div
+      <button
+        type="button"
         class="choice-card"
         :class="{ active: modelValue === 'duo' }"
+        :aria-pressed="modelValue === 'duo'"
         @click="emit('update:modelValue', 'duo')"
       >
-        <div class="choice-icon-wrap friends-gradient">
+        <span class="choice-icon-wrap friends-gradient">
           <span class="choice-emoji">👥</span>
-        </div>
-        <div class="choice-body">
-          <h3 class="choice-title">Duel à Deux</h3>
-          <p class="choice-desc">Défie un copain ou un parent sur le même écran !</p>
-        </div>
-        <div class="choice-radio" :class="{ checked: modelValue === 'duo' }">
+        </span>
+        <span class="choice-body">
+          <span class="choice-title" role="heading" aria-level="3">Duel à Deux</span>
+          <span class="choice-desc">Défie un copain ou un parent sur le même écran !</span>
+        </span>
+        <span class="choice-radio" :class="{ checked: modelValue === 'duo' }" aria-hidden="true">
           ✓
-        </div>
-      </div>
+        </span>
+      </button>
     </div>
 
     <div class="step-actions">
@@ -123,7 +127,11 @@ const emit = defineEmits(['update:modelValue', 'next', 'back'])
   border: 2px solid var(--border-color);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+  transition: var(--motion-interactive);
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.25);
 }
 
@@ -138,6 +146,10 @@ const emit = defineEmits(['update:modelValue', 'next', 'back'])
   border-color: var(--accent-primary);
   box-shadow: 0 5px 0 var(--accent-primary-shadow);
   transform: translateY(-3px);
+}
+
+.choice-card:focus-visible {
+  outline-offset: 4px;
 }
 
 .choice-icon-wrap {
@@ -192,7 +204,7 @@ const emit = defineEmits(['update:modelValue', 'next', 'back'])
   font-weight: 800;
   font-size: 0.9rem;
   color: transparent;
-  transition: all 0.2s ease;
+  transition: var(--motion-interactive);
 }
 
 .choice-radio.checked {
@@ -210,9 +222,17 @@ const emit = defineEmits(['update:modelValue', 'next', 'back'])
 }
 
 @media (max-width: 600px) {
+  .step-card {
+    padding: 1.5rem 1rem;
+    gap: 1.25rem;
+  }
+
+  .step-title {
+    font-size: clamp(1.5rem, 7vw, 2rem);
+  }
+
   .step-actions {
     flex-direction: column-reverse;
   }
 }
 </style>
-

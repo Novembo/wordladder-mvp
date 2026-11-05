@@ -37,6 +37,7 @@ wordladder-mvp/
 │   │   ├── graph.py            # Construction optimisée du graphe O(N*L)
 │   │   ├── main.py             # Application factory FastAPI
 │   │   ├── routers/
+│   │   │   ├── auth.py         # Comptes, sessions HttpOnly et protections CSRF
 │   │   │   ├── matches.py      # /v1/matches (création, coups, abandon/timeout)
 │   │   │   ├── packs.py        # /v1/packs/{lang} & /v1/levels
 │   │   │   ├── leaderboard.py  # /v1/leaderboard
@@ -136,6 +137,11 @@ docker compose up --build
 - **Double accessibilité de saisie** : Clavier virtuel tactile responsive (pour tablettes et smartphones scolaires) et support direct du clavier physique azerty/qwerty pour ordinateurs de bureau.
 - **IA pédagogique** : En mode Solo, l'ordinateur adapte sa stratégie (de coups basiques à coups anticipés) selon le niveau choisi.
 - **Résilience hors-ligne / Réseau faible** : Fallback mémoire automatique si Redis est indisponible, et possibilité de téléchargement de pack JSON client.
+- **Défi adaptatif** : Le temps accordé évolue entre les manches (+10 s après une perte au chrono, -5 s après un cul-de-sac réussi) sans modifier la longueur constante des mots.
+- **Maintenance locale** : Le bouton de réinitialisation efface uniquement les parties archivées et leurs coups; il est désactivé par défaut hors développement.
+- **Comptes facultatifs** : création d’un pseudo (3–20 lettres/chiffres/underscores) et mot de passe (8–128 caractères). Les mots de passe sont hachés avec Argon2; les sessions utilisent des cookies HttpOnly/SameSite et protection CSRF. Les parties invitées restent disponibles. Aucun e-mail n’est demandé : un mot de passe oublié ne peut donc pas être récupéré.
+
+Pour le développement local, définissez `WL_ENVIRONMENT=development` dans `backend/.env` afin d’autoriser le cookie de session non-Secure sur HTTP. Configurez `WL_CORS_ORIGINS` avec les origines exactes du frontend en production (valeur par défaut : `http://localhost:5173` et `http://127.0.0.1:5173`) ainsi qu’une clé aléatoire stable `WL_AUTH_RATE_LIMIT_KEY` d’au moins 32 caractères, partagée entre les instances. Les migrations Alembic sont appliquées automatiquement au démarrage, y compris à une base existante.
 
 ## Licence
 

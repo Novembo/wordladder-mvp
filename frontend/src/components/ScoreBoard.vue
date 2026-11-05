@@ -1,10 +1,12 @@
 <script setup>
 import { computed } from 'vue'
 import { useGameStore } from '@/stores/game'
+import { useAuthStore } from '@/stores/auth'
 
 const game = useGameStore()
+const auth = useAuthStore()
 
-const p1Name = computed(() => 'Joueur 1')
+const p1Name = computed(() => auth.username)
 const p2Name = computed(() => game.mode === 'solo' ? 'Robot Antigravity' : 'Joueur 2')
 </script>
 
@@ -98,7 +100,7 @@ const p2Name = computed(() => game.mode === 'solo' ? 'Robot Antigravity' : 'Joue
   padding: 0.6rem 0.95rem;
   border-radius: var(--radius-md);
   border: 1.5px solid transparent;
-  transition: all 0.3s ease;
+  transition: var(--motion-interactive);
 }
 
 .player-card.active {
@@ -179,5 +181,46 @@ const p2Name = computed(() => game.mode === 'solo' ? 'Robot Antigravity' : 'Joue
   font-weight: 800;
   letter-spacing: 0.05em;
   color: var(--text-dim);
+}
+
+@media (max-width: 600px) {
+  .scoreboard-container {
+    gap: 0.4rem;
+    padding: 0.6rem 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .player-card {
+    gap: 0.5rem;
+    padding: 0.35rem 0.5rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .scores-wrapper {
+    gap: 0.25rem;
+  }
+
+  .player-card {
+    gap: 0.4rem;
+    padding: 0.4rem;
+  }
+
+  .player-avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  .player-name {
+    font-size: 0.72rem;
+  }
+
+  .player-score {
+    font-size: 1.2rem;
+  }
+
+  .heart-icon {
+    font-size: 0.8rem;
+  }
 }
 </style>

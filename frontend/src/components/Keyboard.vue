@@ -32,6 +32,7 @@ function handlePhysicalKeyDown(e) {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
 
   if (e.key === 'Enter') {
+    if (e.target.closest('button')) return
     e.preventDefault()
     emit('submit')
   } else if (e.key === 'Backspace') {
@@ -53,7 +54,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="virtual-keyboard" :class="{ 'is-disabled': disabled }">
+  <div class="virtual-keyboard" :class="{ 'is-disabled': disabled }" role="group" aria-label="Clavier de saisie">
     <div v-for="(row, rIdx) in rows" :key="rIdx" class="keyboard-row">
       <button
         v-for="k in row"
@@ -65,6 +66,7 @@ onUnmounted(() => {
           'key-enter': k === 'ENTER',
           'key-backspace': k === 'BACKSPACE'
         }"
+        :aria-label="k === 'ENTER' ? 'Valider le mot' : k === 'BACKSPACE' ? 'Effacer la dernière lettre' : k"
         :disabled="disabled"
         @click="handleKeyClick(k)"
       >
@@ -103,7 +105,9 @@ onUnmounted(() => {
 
 .key-btn {
   flex: 1;
-  height: 46px;
+  min-width: 0;
+  min-height: 48px;
+  height: 48px;
   background: rgba(30, 41, 59, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-sm);
@@ -115,7 +119,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: var(--motion-interactive);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
@@ -158,8 +162,12 @@ onUnmounted(() => {
 }
 
 @media (max-width: 600px) {
+  .virtual-keyboard {
+    margin-top: 0.5rem;
+  }
+
   .key-btn {
-    height: 42px;
+    height: 48px;
     font-size: 0.95rem;
   }
   .key-wide {
@@ -167,4 +175,3 @@ onUnmounted(() => {
   }
 }
 </style>
-

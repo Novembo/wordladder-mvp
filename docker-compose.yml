@@ -19,6 +19,8 @@ services:
       - WL_REDIS_URL=redis://redis:6379/0
       - WL_REDIS_ENABLED=true
       - WL_DATABASE_URL=sqlite+aiosqlite:///app/wordladder.db
+      - WL_ENVIRONMENT=development
+      - WL_ENABLE_DB_RESET=${WL_ENABLE_DB_RESET:-false}
     volumes:
       - ./backend/data:/app/data
     depends_on:
@@ -27,4 +29,3 @@ services:
 
 volumes:
   redis_data:
-

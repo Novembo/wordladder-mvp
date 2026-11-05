@@ -11,7 +11,7 @@ from sqlalchemy import desc, select
 
 from app.core import GameError, Match, MAX_LIVES, TIME_LIMITS
 from app.database import async_session_factory
-from app.models import MatchRecord, MoveRecord
+from app.models import MatchRecord, MoveRecord, User
 from app.redis_client import cache_delete, cache_get, cache_set
 from .graph_service import get_or_load_pack
 from .synonym_service import find_hint
@@ -33,6 +33,7 @@ class MatchService:
         level: str,
         mode: str = "solo",
         play_all_parts: bool = False,
+        user_id: int | None = None,
     ) -> dict[str, Any]:
         pack = await get_or_load_pack(lang)
         match = Match(
@@ -49,6 +50,8 @@ class MatchService:
             "mode": mode,
             "play_all_parts": play_all_parts,
             "part": match.part,
+            "time_adjustment": match.time_adjustment,
+            "time_limit": match.time_limit,
             "scores": match.scores,
             "lives": match.lives,
             "word_length": match.word_length,
@@ -72,6 +75,7 @@ class MatchService:
                 lang=lang,
                 level=level,
                 mode=mode,
+                user_id=user_id,
                 scores=match.scores,
                 winner=match.winner,
                 total_moves=0,
@@ -97,7 +101,7 @@ class MatchService:
                 "word_length": data.get("word_length", len(data.get("current", "")) or 4),
                 "current_word": data["current"],
                 "to_move": data["to_move"],
-                "time_limit": TIME_LIMITS.get(data["level"], 80),
+                "time_limit": data.get("time_limit", TIME_LIMITS.get(data["level"], 80)),
                 "used_count": len(data["used"]),
                 "finished": data["finished"],
                 "winner": data["winner"],
@@ -145,6 +149,7 @@ class MatchService:
         match.lives = list(data.get("lives", [MAX_LIVES, MAX_LIVES]))
         match.word_length = data.get("word_length", len(data["current"]))
         match.part = data["part"]
+        match.time_adjustment = data.get("time_adjustment", 0)
         match.used = set(data["used"])
         match.current = data["current"]
         match.to_move = data["to_move"]
@@ -179,6 +184,8 @@ class MatchService:
         # Update Redis cache
         data.update({
             "part": match.part,
+            "time_adjustment": match.time_adjustment,
+            "time_limit": match.time_limit,
             "scores": match.scores,
             "lives": match.lives,
             "word_length": match.word_length,
@@ -215,6 +222,7 @@ class MatchService:
         match.lives = list(data.get("lives", [MAX_LIVES, MAX_LIVES]))
         match.word_length = data.get("word_length", len(data["current"]))
         match.part = data["part"]
+        match.time_adjustment = data.get("time_adjustment", 0)
         match.used = set(data["used"])
         match.current = data["current"]
         match.to_move = data["to_move"]
@@ -236,6 +244,8 @@ class MatchService:
 
         data.update({
             "part": match.part,
+            "time_adjustment": match.time_adjustment,
+            "time_limit": match.time_limit,
             "scores": match.scores,
             "lives": match.lives,
             "word_length": match.word_length,
@@ -274,22 +284,27 @@ class MatchService:
     @staticmethod
     async def get_leaderboard(lang: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
         async with async_session_factory() as session:
-            stmt = select(MatchRecord).where(MatchRecord.finished_at.is_not(None))
+            stmt = (
+                select(MatchRecord, User.username)
+                .outerjoin(User, MatchRecord.user_id == User.id)
+                .where(MatchRecord.finished_at.is_not(None))
+            )
             if lang:
                 stmt = stmt.where(MatchRecord.lang == lang)
             stmt = stmt.order_by(desc(MatchRecord.total_moves), desc(MatchRecord.finished_at)).limit(limit)
 
             rows = await session.execute(stmt)
-            records = rows.scalars().all()
+            records = rows.all()
 
             results = []
-            for rank, r in enumerate(records, start=1):
+            for rank, (r, username) in enumerate(records, start=1):
                 results.append({
                     "rank": rank,
                     "match_id": r.id,
                     "lang": r.lang,
                     "level": r.level,
                     "mode": r.mode,
+                    "username": username,
                     "scores": r.scores,
                     "winner": r.winner,
                     "total_moves": r.total_moves,

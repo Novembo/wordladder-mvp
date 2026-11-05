@@ -47,7 +47,7 @@ function handleCloseHint() {
       <div class="bubble-content">
         <div class="bubble-header">
           <span class="bubble-badge">Indice Pédagogique</span>
-          <button type="button" class="btn-close-hint" title="Fermer l'indice" @click="handleCloseHint">
+          <button type="button" class="btn-close-hint" aria-label="Fermer l'indice" @click="handleCloseHint">
             ✕
           </button>
         </div>
@@ -67,6 +67,12 @@ function handleCloseHint() {
   justify-content: center;
 }
 
+@media (max-width: 600px) {
+  .hint-container {
+    margin: 0.25rem 0;
+  }
+}
+
 .hint-trigger-wrap {
   display: flex;
   justify-content: center;
@@ -77,6 +83,7 @@ function handleCloseHint() {
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
+  min-height: 48px;
   background: rgba(251, 191, 36, 0.12);
   border: 1.5px solid rgba(251, 191, 36, 0.4);
   color: #fef08a;
@@ -87,7 +94,7 @@ function handleCloseHint() {
   font-size: 0.95rem;
   cursor: pointer;
   box-shadow: 0 4px 0 rgba(180, 83, 9, 0.4);
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: var(--motion-interactive);
   user-select: none;
 }
 
@@ -169,6 +176,8 @@ function handleCloseHint() {
 }
 
 .btn-close-hint {
+  min-width: 44px;
+  min-height: 44px;
   background: transparent;
   border: none;
   color: var(--text-muted);
@@ -176,7 +185,7 @@ function handleCloseHint() {
   font-size: 1rem;
   padding: 0.2rem 0.4rem;
   border-radius: var(--radius-sm);
-  transition: all 0.15s ease;
+  transition: var(--motion-interactive);
 }
 
 .btn-close-hint:hover {
@@ -191,4 +200,3 @@ function handleCloseHint() {
   font-weight: 600;
 }
 </style>
-

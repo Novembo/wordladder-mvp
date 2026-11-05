@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '@/stores/game'
 import ScoreBoard from '@/components/ScoreBoard.vue'
@@ -12,7 +12,10 @@ const router = useRouter()
 const game = useGameStore()
 
 const currentInput = ref('')
-const showLifeLostToast = ref(false)
+const feedbackMessage = ref('')
+const feedbackTitle = ref('')
+const feedbackIcon = ref('')
+let feedbackTimeout
 
 const wordLength = computed(() => game.wordLength || (game.currentWord ? game.currentWord.length : 4))
 
@@ -57,14 +60,31 @@ function handleSurrender() {
 
 // Watch for life lost event to display encouraging prompt
 watch(
-  () => game.lastEvent,
+  () => [game.lastEvent, game.part, game.lives],
   (ev) => {
-    if (ev && ev.includes('life_lost')) {
-      showLifeLostToast.value = true
-      setTimeout(() => {
-        showLifeLostToast.value = false
-      }, 3500)
+    const event = ev[0]
+    if (!event) return
+
+    if (event.includes('life_lost')) {
+      feedbackTitle.value = 'Oups, le temps est écoulé !'
+      feedbackIcon.value = '💔'
+      feedbackMessage.value = 'Pas d’inquiétude, réessaie ! Le chrono repart.'
+    } else if (!game.finished && event.includes('_timeout_loser_')) {
+      feedbackTitle.value = 'Un nouveau départ !'
+      feedbackIcon.value = '⏱️'
+      feedbackMessage.value = 'Le prochain défi te donne 10 secondes de plus.'
+    } else if (!game.finished && event.includes('_dead_end_loser_')) {
+      feedbackTitle.value = 'Super coup !'
+      feedbackIcon.value = '⭐'
+      feedbackMessage.value = 'Le chrono sera 5 secondes plus rapide au prochain défi.'
+    } else {
+      return
     }
+
+    clearTimeout(feedbackTimeout)
+    feedbackTimeout = setTimeout(() => {
+      feedbackMessage.value = ''
+    }, 3500)
   }
 )
 
@@ -85,13 +105,17 @@ onMounted(() => {
     router.push('/')
   }
 })
+
+onUnmounted(() => {
+  clearTimeout(feedbackTimeout)
+})
 </script>
 
 <template>
-  <div class="game-view container" v-if="game.matchId">
+  <main class="game-view container" v-if="game.matchId">
     <!-- Top Bar -->
     <header class="game-header">
-      <button type="button" class="btn-icon" title="Quitter" @click="handleSurrender">
+      <button type="button" class="btn-icon" aria-label="Quitter le match" @click="handleSurrender">
         ✕
       </button>
 
@@ -109,11 +133,11 @@ onMounted(() => {
     <ScoreBoard />
 
     <!-- Life Lost Encouraging Toast -->
-    <div v-if="showLifeLostToast" class="life-lost-banner animate-pop">
-      <span class="banner-icon heart-beat">💔</span>
+    <div v-if="feedbackMessage" class="life-lost-banner animate-pop" role="status" aria-live="polite" aria-atomic="true">
+      <span class="banner-icon heart-beat">{{ feedbackIcon }}</span>
       <div class="banner-content">
-        <span class="banner-title">Oups, le temps est écoulé !</span>
-        <span class="banner-sub">Pas d'inquiétude, réessaie ! Le chrono repart.</span>
+        <span class="banner-title">{{ feedbackTitle }}</span>
+        <span class="banner-sub">{{ feedbackMessage }}</span>
       </div>
     </div>
 
@@ -127,7 +151,7 @@ onMounted(() => {
 
       <!-- Turn & Timer Section -->
       <div class="turn-section">
-        <div class="turn-banner" :class="{ 'turn-ai': game.toMove === 1 && game.mode === 'solo' }">
+        <div class="turn-banner" :class="{ 'turn-ai': game.toMove === 1 && game.mode === 'solo' }" aria-live="polite">
           {{ game.currentPlayerLabel }}
         </div>
         <Timer />
@@ -135,11 +159,15 @@ onMounted(() => {
 
       <!-- Word Entry Slots -->
       <div class="input-card glass-panel" :class="{ 'animate-shake': game.shakeInput }">
-        <div class="slots-label">
+        <div class="slots-label" id="word-entry-label">
           Mot à transformer : <span class="current-word-highlight">{{ game.currentWord.toUpperCase() }}</span>
         </div>
 
-        <div class="slots-container">
+        <div
+          class="slots-container"
+          role="group"
+          :aria-label="`Saisie du mot. Mot à transformer : ${game.currentWord}. ${currentInput.length} lettre(s) sur ${wordLength} saisie(s).`"
+        >
           <div
             v-for="(letter, idx) in inputLetters"
             :key="idx"
@@ -153,7 +181,7 @@ onMounted(() => {
           </div>
         </div>
 
-        <div v-if="game.errorMessage" class="error-text animate-shake">
+        <div v-if="game.errorMessage" class="error-text animate-shake" role="alert">
           ⚠️ {{ game.errorMessage }}
         </div>
       </div>
@@ -166,7 +194,7 @@ onMounted(() => {
         @submit="handleSubmitWord"
       />
     </div>
-  </div>
+  </main>
 </template>
 
 <style scoped>
@@ -186,8 +214,9 @@ onMounted(() => {
 }
 
 .btn-icon {
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
   border-radius: var(--radius-full);
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--border-color);
@@ -197,7 +226,7 @@ onMounted(() => {
   justify-content: center;
   font-size: 1.1rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--motion-interactive);
 }
 
 .btn-icon:hover {
@@ -331,8 +360,8 @@ onMounted(() => {
 }
 
 .input-slot {
-  width: 52px;
-  height: 60px;
+  width: clamp(2.25rem, 11vw, 3.25rem);
+  height: clamp(2.75rem, 15vw, 3.75rem);
   border-radius: var(--radius-md);
   border: 2px solid var(--border-color);
   background: rgba(255, 255, 255, 0.04);
@@ -344,7 +373,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3);
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: var(--motion-interactive);
   user-select: none;
 }
 
@@ -366,5 +395,39 @@ onMounted(() => {
   color: #f43f5e;
   font-weight: 700;
   margin-top: 0.5rem;
+}
+
+@media (max-width: 600px) {
+  .game-view {
+    min-height: 100vh;
+    min-height: 100svh;
+    justify-content: flex-start;
+    gap: 0.25rem;
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .game-header {
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .header-center {
+    gap: 0.35rem;
+  }
+
+  .mode-tag,
+  .length-badge {
+    font-size: 0.7rem;
+  }
+
+  .input-slot {
+    font-size: 1.4rem;
+  }
+
+  .input-card {
+    padding: 0.75rem;
+    margin-bottom: 0.25rem;
+  }
 }
 </style>

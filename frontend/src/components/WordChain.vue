@@ -104,6 +104,14 @@ watch(
   max-height: 260px;
 }
 
+@media (max-width: 600px) {
+  .ladder-wrapper {
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+    max-height: 140px;
+  }
+}
+
 .ladder-header {
   display: flex;
   justify-content: space-between;
@@ -188,7 +196,7 @@ watch(
   border: 1px solid var(--border-color);
   padding: 0.5rem 0.85rem;
   border-radius: var(--radius-md);
-  transition: all 0.25s ease;
+  transition: var(--motion-interactive);
 }
 
 .ladder-step.is-current .step-card {
@@ -239,7 +247,7 @@ watch(
   font-size: 1rem;
   font-weight: 700;
   color: var(--text-main);
-  transition: all 0.2s ease;
+  transition: var(--motion-interactive);
 }
 
 .letter-tile.changed-letter {
@@ -250,4 +258,3 @@ watch(
   box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
 }
 </style>
-

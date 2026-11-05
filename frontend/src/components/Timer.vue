@@ -49,7 +49,7 @@ function stopTimer() {
 
 // Watch for turn changes or match resets
 watch(
-  () => [game.currentWord, game.toMove, game.part, game.finished],
+  () => [game.currentWord, game.toMove, game.part, game.finished, game.lives],
   ([,, , finished]) => {
     if (finished) {
       stopTimer()
@@ -71,8 +71,13 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="timer-wrapper" :class="{ urgent: isUrgent }">
-    <svg class="timer-svg" viewBox="0 0 80 80">
+  <div
+    class="timer-wrapper"
+    :class="{ urgent: isUrgent }"
+    role="timer"
+    :aria-label="`Temps restant : ${timeLeft} secondes`"
+  >
+    <svg class="timer-svg" viewBox="0 0 80 80" aria-hidden="true">
       <circle
         class="timer-circle-bg"
         cx="40"
@@ -105,6 +110,17 @@ onUnmounted(() => {
   justify-content: center;
   margin: 0 auto;
   transition: transform 0.2s ease;
+}
+
+@media (max-width: 600px) {
+  .timer-wrapper {
+    width: 64px;
+    height: 64px;
+  }
+
+  .timer-number {
+    font-size: 1.2rem;
+  }
 }
 
 .timer-wrapper.urgent {
@@ -149,4 +165,3 @@ onUnmounted(() => {
   letter-spacing: -0.05em;
 }
 </style>
-

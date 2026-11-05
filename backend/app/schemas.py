@@ -66,6 +66,7 @@ class LeaderboardEntry(BaseModel):
     lang: str
     level: str
     mode: str
+    username: str | None = None
     scores: list[int]
     winner: int | None
     total_moves: int
@@ -77,3 +78,12 @@ class HealthResponse(BaseModel):
     redis: str
     database: str
     languages: list[str]
+
+
+class ResetAvailability(BaseModel):
+    enabled: bool
+
+
+class DatabaseResetResponse(BaseModel):
+    deleted_matches: int
+    deleted_moves: int

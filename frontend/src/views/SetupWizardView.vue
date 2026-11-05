@@ -57,48 +57,57 @@ async function handleLaunchGame() {
 <template>
   <div class="wizard-container container">
     <!-- Milestone Progress Bar for steps 1, 2, 3 -->
-    <div v-if="currentStep > 0" class="progress-milestone-wrap animate-pop">
+    <nav v-if="currentStep > 0" class="progress-milestone-wrap animate-pop" aria-label="Étapes de préparation">
       <div class="milestones-bar">
-        <div
+        <button
+          type="button"
           class="milestone-item"
           :class="{ active: currentStep >= 1, current: currentStep === 1 }"
+          :aria-current="currentStep === 1 ? 'step' : undefined"
+          aria-label="Étape 1 sur 3 : Mode"
           @click="currentStep = 1"
         >
-          <div class="milestone-dot">
+          <span class="milestone-dot">
             <span v-if="currentStep > 1">✓</span>
             <span v-else>1</span>
-          </div>
+          </span>
           <span class="milestone-label">Mode</span>
-        </div>
+        </button>
 
         <div class="milestone-connector" :class="{ filled: currentStep >= 2 }"></div>
 
-        <div
+        <button
+          type="button"
           class="milestone-item"
           :class="{ active: currentStep >= 2, current: currentStep === 2 }"
+          :aria-current="currentStep === 2 ? 'step' : undefined"
+          aria-label="Étape 2 sur 3 : Langue"
           @click="currentStep = 2"
         >
-          <div class="milestone-dot">
+          <span class="milestone-dot">
             <span v-if="currentStep > 2">✓</span>
             <span v-else>2</span>
-          </div>
+          </span>
           <span class="milestone-label">Langue</span>
-        </div>
+        </button>
 
         <div class="milestone-connector" :class="{ filled: currentStep >= 3 }"></div>
 
-        <div
+        <button
+          type="button"
           class="milestone-item"
           :class="{ active: currentStep >= 3, current: currentStep === 3 }"
+          :aria-current="currentStep === 3 ? 'step' : undefined"
+          aria-label="Étape 3 sur 3 : Défi"
           @click="currentStep = 3"
         >
-          <div class="milestone-dot">
+          <span class="milestone-dot">
             <span>3</span>
-          </div>
+          </span>
           <span class="milestone-label">Défi</span>
-        </div>
+        </button>
       </div>
-    </div>
+    </nav>
 
     <!-- Step Views -->
     <transition name="fade-slide" mode="out-in">
@@ -137,7 +146,7 @@ async function handleLaunchGame() {
     </transition>
 
     <!-- Global error banner -->
-    <div v-if="game.errorMessage" class="error-banner animate-shake">
+    <div v-if="game.errorMessage" class="error-banner animate-shake" role="alert">
       ⚠️ {{ game.errorMessage }}
     </div>
   </div>
@@ -145,6 +154,7 @@ async function handleLaunchGame() {
 
 <style scoped>
 .wizard-container {
+  width: 100%;
   min-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -171,6 +181,10 @@ async function handleLaunchGame() {
   align-items: center;
   gap: 0.4rem;
   cursor: pointer;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  padding: 0.25rem;
 }
 
 .milestone-dot {
@@ -185,7 +199,7 @@ async function handleLaunchGame() {
   align-items: center;
   justify-content: center;
   font-size: 0.95rem;
-  transition: all 0.25s ease;
+  transition: var(--motion-interactive);
 }
 
 .milestone-item.active .milestone-dot {
@@ -242,10 +256,16 @@ async function handleLaunchGame() {
   max-width: 500px;
 }
 
+.milestone-item:focus-visible {
+  border-radius: var(--radius-md);
+}
+
 /* Transitions */
 .fade-slide-enter-active,
 .fade-slide-leave-active {
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    opacity var(--motion-standard) var(--motion-ease),
+    transform var(--motion-standard) var(--motion-ease);
 }
 
 .fade-slide-enter-from {
@@ -257,5 +277,19 @@ async function handleLaunchGame() {
   opacity: 0;
   transform: translateY(-12px) scale(0.98);
 }
-</style>
 
+@media (max-width: 600px) {
+  .wizard-container {
+    min-height: 90svh;
+    padding: 1rem 0.75rem;
+  }
+
+  .progress-milestone-wrap {
+    margin-bottom: 1.25rem;
+  }
+
+  .milestone-item {
+    min-height: 48px;
+  }
+}
+</style>

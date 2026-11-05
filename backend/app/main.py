@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .database import init_db
 from .redis_client import close_redis, get_redis
-from .routers import leaderboard, matches, packs, ws
+from .routers import auth, leaderboard, matches, maintenance, packs, ws
 from .schemas import HealthResponse
 from .services.graph_service import get_or_load_pack
 
@@ -40,16 +40,18 @@ def create_app() -> FastAPI:
     # Enable CORS for local Vite development & mobile devices
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=settings.cors_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type", "X-CSRF-Token"],
     )
 
     # Include routers
+    app.include_router(auth.router)
     app.include_router(matches.router)
     app.include_router(packs.router)
     app.include_router(leaderboard.router)
+    app.include_router(maintenance.router)
     app.include_router(ws.router)
 
     @app.get("/")
@@ -91,5 +93,3 @@ app = create_app()
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
-
-

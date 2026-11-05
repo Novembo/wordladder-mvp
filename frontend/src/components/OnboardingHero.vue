@@ -184,12 +184,21 @@ const emit = defineEmits(['start'])
 }
 
 @media (max-width: 600px) {
-  .poster-title {
-    font-size: 1.8rem;
+  .hero-poster {
+    padding: 2rem 1rem;
   }
+
+  .poster-title {
+    font-size: clamp(1.6rem, 7vw, 1.8rem);
+  }
+
   .poster-description {
     font-size: 0.95rem;
   }
+
+  .btn-cta {
+    width: 100%;
+    padding: 1rem 1.25rem;
+  }
 }
 </style>
-

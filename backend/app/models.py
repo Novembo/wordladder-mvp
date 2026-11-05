@@ -45,6 +45,43 @@ class GraphEdge(Base):
     )
 
 
+class User(Base):
+    """Registered player account."""
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(20), nullable=False)
+    username_normalized: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+
+class UserSession(Base):
+    """Revocable, server-side browser session."""
+
+    __tablename__ = "user_sessions"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    csrf_token: Mapped[str] = mapped_column(String(64), nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+
+class LoginAttempt(Base):
+    """Failed login attempt used for persistent per-name and per-IP throttling."""
+
+    __tablename__ = "login_attempts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username_normalized: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    ip_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, index=True)
+
+
 class MatchRecord(Base):
     """Archived match (persisted once the match finishes)."""
 
@@ -54,6 +91,9 @@ class MatchRecord(Base):
     lang: Mapped[str] = mapped_column(String(5), nullable=False)
     level: Mapped[str] = mapped_column(String(20), nullable=False)
     mode: Mapped[str] = mapped_column(String(10), nullable=False)
+    user_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     scores: Mapped[list] = mapped_column(JSON, default=list)
     winner: Mapped[int | None] = mapped_column(Integer, nullable=True)
     total_moves: Mapped[int] = mapped_column(Integer, default=0)

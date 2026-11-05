@@ -103,8 +103,27 @@ def test_three_lives_system_and_timeout():
     m.timeout(1)
     assert m.scores == [1, 0]
     assert m.part == 2
+    assert m.time_limit == 90
     # Lives reset to 3 for the new round
     assert m.lives == [3, 3]
+
+
+def test_adaptive_timer_gets_faster_after_a_dead_end():
+    graph = {
+        "cat": {"bat"},
+        "bat": {"cat"},
+        "dog": {"log"},
+        "log": {"dog"},
+    }
+    pack = Pack("en", graph, {"basic": set(graph)})
+    m = Match(pack, "basic", "duo", rng=random.Random(4))
+    force_start(m, "cat")
+
+    state = m.play(0, "bat")
+
+    assert state["part"] == 2
+    assert state["time_limit"] == 75
+    assert state["word_length"] == 3
 
 
 def test_solo_computer_turn():

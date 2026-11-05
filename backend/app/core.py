@@ -54,6 +54,7 @@ class Match:
     scores: list[int] = field(default_factory=lambda: [0, 0])
     lives: list[int] = field(default_factory=lambda: [MAX_LIVES, MAX_LIVES])
     part: int = 1
+    time_adjustment: int = 0
     used: set[str] = field(default_factory=set)
     current: str = ""
     word_length: int = 0  # Strict constant word length for the entire match
@@ -72,7 +73,8 @@ class Match:
 
     @property
     def time_limit(self) -> int:
-        return TIME_LIMITS[self.level]
+        base_limit = TIME_LIMITS[self.level]
+        return base_limit + self.time_adjustment
 
     def available_from(self, word: str) -> set[str]:
         return self.pack.graph.get(word, set()) - self.used
@@ -136,6 +138,10 @@ class Match:
             self.finished = True
             self.winner = 0 if self.scores[0] > self.scores[1] else 1
             return
+        if reason == "timeout":
+            self.time_adjustment = min(self.time_adjustment + 10, 20)
+        elif reason == "dead_end":
+            self.time_adjustment = max(self.time_adjustment - 5, -10)
         self.part += 1
         # Refresh lives for each new round
         self.lives = [MAX_LIVES, MAX_LIVES]

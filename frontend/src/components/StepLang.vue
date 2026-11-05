@@ -41,26 +41,28 @@ const languages = [
       <p class="step-sub">Choisis la langue de ton dictionnaire pour cette partie.</p>
     </div>
 
-    <div class="langs-list">
-      <div
+    <div class="langs-list" role="group" aria-label="Langue du dictionnaire">
+      <button
         v-for="l in languages"
         :key="l.code"
+        type="button"
         class="lang-choice-card"
         :class="{ active: modelValue === l.code }"
+        :aria-pressed="modelValue === l.code"
         @click="emit('update:modelValue', l.code)"
       >
-        <div class="lang-flag">{{ l.flag }}</div>
-        <div class="lang-body">
-          <div class="lang-title-row">
-            <h3 class="lang-name">{{ l.label }}</h3>
+        <span class="lang-flag">{{ l.flag }}</span>
+        <span class="lang-body">
+          <span class="lang-title-row">
+            <span class="lang-name" role="heading" aria-level="3">{{ l.label }}</span>
             <span class="sample-pill font-mono">{{ l.sample }}</span>
-          </div>
-          <p class="lang-motto">{{ l.motto }}</p>
-        </div>
-        <div class="choice-radio" :class="{ checked: modelValue === l.code }">
+          </span>
+          <span class="lang-motto">{{ l.motto }}</span>
+        </span>
+        <span class="choice-radio" :class="{ checked: modelValue === l.code }" aria-hidden="true">
           ✓
-        </div>
-      </div>
+        </span>
+      </button>
     </div>
 
     <div class="step-actions">
@@ -131,7 +133,11 @@ const languages = [
   border: 2px solid var(--border-color);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+  transition: var(--motion-interactive);
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.25);
 }
 
@@ -146,6 +152,10 @@ const languages = [
   border-color: var(--accent-secondary);
   box-shadow: 0 5px 0 var(--accent-secondary-shadow);
   transform: translateY(-3px);
+}
+
+.lang-choice-card:focus-visible {
+  outline-offset: 4px;
 }
 
 .lang-flag {
@@ -199,7 +209,7 @@ const languages = [
   font-weight: 800;
   font-size: 0.9rem;
   color: transparent;
-  transition: all 0.2s ease;
+  transition: var(--motion-interactive);
 }
 
 .choice-radio.checked {
@@ -217,9 +227,17 @@ const languages = [
 }
 
 @media (max-width: 600px) {
+  .step-card {
+    padding: 1.5rem 1rem;
+    gap: 1.25rem;
+  }
+
+  .step-title {
+    font-size: clamp(1.5rem, 7vw, 2rem);
+  }
+
   .step-actions {
     flex-direction: column-reverse;
   }
 }
 </style>
-

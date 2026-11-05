@@ -2,9 +2,11 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '@/stores/game'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const game = useGameStore()
+const auth = useAuthStore()
 
 const isP0Winner = computed(() => game.winner === 0)
 const isP1Winner = computed(() => game.winner === 1)
@@ -14,7 +16,7 @@ const title = computed(() => {
   if (game.mode === 'solo') {
     return isP0Winner.value ? '🎉 Victoire !' : '🤖 L\'ordinateur l\'emporte !'
   }
-  return isP0Winner.value ? '🏆 Victoire de Joueur 1 !' : '🏆 Victoire de Joueur 2 !'
+  return isP0Winner.value ? `🏆 Victoire de ${auth.username} !` : '🏆 Victoire de Joueur 2 !'
 })
 
 const subtitle = computed(() => {
@@ -58,7 +60,7 @@ function handleGoHome() {
       <!-- Score display -->
       <div class="final-score-box">
         <div class="score-player">
-          <span class="score-name">Joueur 1</span>
+          <span class="score-name">{{ auth.username }}</span>
           <span class="score-val" :class="{ 'score-win': isP0Winner }">{{ game.scores[0] }}</span>
         </div>
 
@@ -227,4 +229,3 @@ function handleGoHome() {
   margin-top: 0.5rem;
 }
 </style>
-

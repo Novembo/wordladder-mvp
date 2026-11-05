@@ -1,10 +1,16 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 
+const auth = useAuthStore()
 const activeLang = ref('all')
 const entries = ref([])
 const loading = ref(false)
 const error = ref(null)
+const resetEnabled = ref(false)
+const resetLoading = ref(false)
+const resetError = ref('')
+const resetMessage = ref('')
 
 const filters = [
   { code: 'all', label: 'Toutes les langues', flag: '🌍' },
@@ -30,6 +36,43 @@ async function fetchLeaderboard(lang = 'all') {
   }
 }
 
+async function checkResetAvailability() {
+  try {
+    const res = await fetch('/v1/maintenance/reset')
+    if (!res.ok) throw new Error('Impossible de vérifier les options de maintenance')
+    resetEnabled.value = (await res.json()).enabled
+  } catch (err) {
+    resetError.value = err instanceof Error ? err.message : 'Impossible de vérifier les options de maintenance'
+  }
+}
+
+async function resetDatabase() {
+  if (resetLoading.value || !resetEnabled.value) return
+  const confirmed = window.confirm(
+    'Réinitialiser la base de données ? Seules les parties archivées et leurs coups seront supprimés. Les matchs en cours et les dictionnaires seront conservés.'
+  )
+  if (!confirmed) return
+
+  resetLoading.value = true
+  resetError.value = ''
+  resetMessage.value = ''
+  try {
+    await auth.initialize()
+    const res = await fetch('/v1/maintenance/reset', {
+      method: 'POST',
+      headers: auth.csrfToken ? { 'X-CSRF-Token': auth.csrfToken } : {},
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.detail || 'La réinitialisation a échoué')
+    resetMessage.value = `${data.deleted_matches} partie(s) archivée(s) et ${data.deleted_moves} coup(s) supprimé(s).`
+    await fetchLeaderboard(activeLang.value)
+  } catch (err) {
+    resetError.value = err instanceof Error ? err.message : 'La réinitialisation a échoué'
+  } finally {
+    resetLoading.value = false
+  }
+}
+
 function formatDate(isoStr) {
   if (!isoStr) return '-'
   const d = new Date(isoStr)
@@ -43,6 +86,7 @@ function formatDate(isoStr) {
 
 onMounted(() => {
   fetchLeaderboard('all')
+  checkResetAvailability()
 })
 </script>
 
@@ -66,12 +110,27 @@ onMounted(() => {
         type="button"
         class="filter-pill"
         :class="{ active: activeLang === f.code }"
+        :aria-pressed="activeLang === f.code"
+        :disabled="loading"
         @click="fetchLeaderboard(f.code)"
       >
         <span>{{ f.flag }}</span>
         <span>{{ f.label }}</span>
       </button>
     </div>
+
+    <section v-if="resetEnabled" class="database-reset glass-panel" aria-labelledby="database-reset-title">
+      <div class="database-reset-copy">
+        <h2 id="database-reset-title">Maintenance de la base</h2>
+        <p>Efface les parties archivées et leurs coups. Les matchs en cours et les dictionnaires sont conservés.</p>
+      </div>
+      <button type="button" class="btn btn-danger" :disabled="resetLoading" @click="resetDatabase">
+        {{ resetLoading ? 'Réinitialisation...' : 'Réinitialiser la base de données' }}
+      </button>
+      <p v-if="resetMessage" class="reset-message" role="status" aria-live="polite">{{ resetMessage }}</p>
+      <p v-if="resetError" class="reset-error" role="alert">{{ resetError }}</p>
+    </section>
+    <p v-else-if="resetError" class="reset-error" role="status">{{ resetError }}</p>
 
     <!-- Table Card -->
     <div class="leaderboard-card glass-panel">
@@ -80,8 +139,11 @@ onMounted(() => {
         <span>Chargement des records...</span>
       </div>
 
-      <div v-else-if="error" class="error-state">
-        {{ error }}
+      <div v-else-if="error" class="error-state" role="alert">
+        <p>{{ error }}</p>
+        <button type="button" class="btn btn-primary" @click="fetchLeaderboard(activeLang)">
+          Réessayer
+        </button>
       </div>
 
       <div v-else-if="entries.length === 0" class="empty-state">
@@ -92,11 +154,12 @@ onMounted(() => {
         </router-link>
       </div>
 
-      <div v-else class="table-responsive">
+      <div v-else class="table-responsive" role="region" aria-label="Classement des joueurs" tabindex="0">
         <table class="leaderboard-table">
           <thead>
             <tr>
               <th class="th-rank">Rang</th>
+              <th>Joueur</th>
               <th>Langue</th>
               <th>Difficulté</th>
               <th>Mode</th>
@@ -113,6 +176,7 @@ onMounted(() => {
                 <span v-else-if="item.rank === 3" class="rank-badge rank-3">🥉 3</span>
                 <span v-else class="rank-badge rank-other">#{{ item.rank }}</span>
               </td>
+              <td>{{ item.username || 'Invité' }}</td>
               <td>
                 <span class="lang-tag">{{ item.lang.toUpperCase() }}</span>
               </td>
@@ -169,7 +233,43 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 
+.database-reset {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-color: rgba(244, 63, 94, 0.35);
+}
+
+.database-reset-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.database-reset-copy h2 {
+  font-size: 1rem;
+}
+
+.database-reset-copy p,
+.reset-message,
+.reset-error {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.reset-message {
+  color: #86efac;
+}
+
+.reset-error {
+  color: #fecdd3;
+}
+
 .filter-pill {
+  min-height: 44px;
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -182,7 +282,7 @@ onMounted(() => {
   padding: 0.5rem 0.9rem;
   border-radius: var(--radius-full);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--motion-interactive);
 }
 
 .filter-pill:hover {
@@ -310,5 +410,31 @@ onMounted(() => {
 .capitalize {
   text-transform: capitalize;
 }
-</style>
 
+@media (max-width: 600px) {
+  .leaderboard-view {
+    gap: 1rem;
+    padding-top: max(1.25rem, env(safe-area-inset-top));
+  }
+
+  .view-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .view-title {
+    font-size: clamp(1.5rem, 7vw, 2rem);
+  }
+
+  .database-reset {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 1rem;
+  }
+
+  .leaderboard-card {
+    padding: 0.75rem;
+  }
+}
+</style>

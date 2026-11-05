@@ -37,3 +37,18 @@ Contrairement au backend qui utilise Python et `pip` (`requirements.txt`), le fr
 - **`src/components/Keyboard.vue`** : Clavier tactile virtuel responsive et compatible clavier physique.
 - **`src/stores/game.js`** : Store Pinia gérant l'état du match et les échanges avec l'API FastAPI.
 
+## 📱 Conception mobile-first
+
+Les écrans sont conçus pour les petits viewports en premier, avec reflow sur tablette et ordinateur, prise en compte des zones sûres iOS, commandes tactiles d'au moins 44 px et prise en charge du zoom et de la réduction des animations. Les choix du parcours utilisent des contrôles natifs accessibles au clavier et aux lecteurs d'écran.
+
+Le chrono s'adapte entre les manches sans changer la longueur des mots : +10 s après une manche perdue au temps et -5 s après un cul-de-sac réussi. La longueur de mot reste fixe pendant tout le match.
+
+Le bouton de réinitialisation de l'historique est réservé au mode développement. Pour l'activer localement, définissez `WL_ENVIRONMENT=development` et `WL_ENABLE_DB_RESET=true` dans `backend/.env`, puis redémarrez l'API. Il supprime uniquement les matchs archivés et leurs coups; les matchs actifs, les mots et les graphes restent intacts.
+
+La création d’un compte est facultative : un pseudo et un mot de passe suffisent, et le mode invité reste disponible. Sans adresse e-mail, aucun mot de passe oublié ne peut être récupéré. Les sessions sont conservées dans un cookie HttpOnly; aucun jeton de session ou mot de passe n’est stocké dans le navigateur.
+
+Vérifier l'interface et le build de production :
+
+```bash
+npm run build
+```
