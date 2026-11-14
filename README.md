@@ -1,5 +1,7 @@
 # 🪜 Word Ladder — Jeu Éducatif & Pédagogique (MVP Complet)
 
+[![CI](https://github.com/Novembo/wordladder-mvp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Novembo/wordladder-mvp/actions/workflows/ci.yml)
+
 Word Ladder est une application EdTech moderne, engageante et performante conçue pour l'apprentissage et l'enrichissement du vocabulaire en plusieurs langues (**Français 🇫🇷**, **Anglais 🇬🇧**, **Espagnol 🇪🇸**).
 
 Le principe : transformer un mot de départ en changeant **exactement une lettre à chaque tour** pour former un mot valide du dictionnaire, contre l'ordinateur ou en duel local deux joueurs.
@@ -115,8 +117,10 @@ L'application web s'ouvre sur `http://localhost:5173`. Le proxy Vite redirige au
 
 ```bash
 cd backend
-pytest tests
+python -m pytest -q
 ```
+
+Le workflow GitHub Actions exécute ces tests backend et construit le frontend sur chaque pull request vers `main` et push sur `main`. Aucun déploiement automatique n'est configuré pour le moment.
 
 ### 4. Déploiement avec Docker Compose
 
