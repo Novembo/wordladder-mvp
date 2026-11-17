@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: wordladder-api
+    runtime: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: WL_ENVIRONMENT
+        value: production
+      - key: WL_REDIS_ENABLED
+        value: "false"
+      - key: WL_DATABASE_URL
+        value: sqlite+aiosqlite:///app/state/wordladder.db
+      - key: WL_AUTH_RATE_LIMIT_KEY
+        generateValue: true
+      - key: WL_CORS_ORIGINS
+        value: '["https://novembo.github.io", "http://localhost:5173", "http://127.0.0.1:5173"]'
