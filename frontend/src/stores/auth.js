@@ -35,14 +35,13 @@ export const useAuthStore = defineStore('auth', () => {
     initialization = (async () => {
       try {
         const response = await fetch(`${API_BASE}/me`, { credentials: 'same-origin' })
-        if (response.status === 401) {
+        if (response.ok) {
+          applyUser(await response.json())
+        } else {
           clearUser()
-          return
         }
-        if (!response.ok) throw new Error('Impossible de vérifier la session')
-        applyUser(await response.json())
-      } catch (error) {
-        errorMessage.value = error instanceof Error ? error.message : 'Erreur de connexion'
+      } catch {
+        clearUser()
       } finally {
         ready.value = true
       }
