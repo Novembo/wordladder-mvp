@@ -5,6 +5,8 @@ import { useGameStore } from '@/stores/game'
 const game = useGameStore()
 const timeLeft = ref(game.timeLimit)
 let interval = null
+let timeoutPending = false
+let handledDeadline = null
 
 const radius = 32
 const circumference = 2 * Math.PI * radius
@@ -23,21 +25,24 @@ const timerColor = computed(() => {
 
 const isUrgent = computed(() => timeLeft.value <= 5 && !game.finished)
 
-function startTimer() {
-  stopTimer()
-  timeLeft.value = game.timeLimit
-  interval = setInterval(() => {
-    if (game.finished) {
-      stopTimer()
-      return
-    }
-    if (timeLeft.value > 0) {
-      timeLeft.value--
-    } else {
-      stopTimer()
-      game.handleTimeout()
-    }
-  }, 1000)
+function updateTimer() {
+  if (game.finished) return
+  const deadline = Date.parse(game.deadlineAt || '')
+  if (!Number.isFinite(deadline)) {
+    timeLeft.value = game.timeLimit
+    return
+  }
+
+  const remaining = Math.max(0, deadline - Date.now())
+  timeLeft.value = Math.ceil(remaining / 1000)
+  if (remaining === 0 && handledDeadline !== game.deadlineAt && !timeoutPending) {
+    handledDeadline = game.deadlineAt
+    timeoutPending = true
+    game.handleTimeout().then((succeeded) => {
+      timeoutPending = false
+      if (!succeeded) handledDeadline = null
+    })
+  }
 }
 
 function stopTimer() {
@@ -47,22 +52,14 @@ function stopTimer() {
   }
 }
 
-// Watch for turn changes or match resets
-watch(
-  () => [game.currentWord, game.toMove, game.part, game.finished, game.lives],
-  ([,, , finished]) => {
-    if (finished) {
-      stopTimer()
-    } else {
-      startTimer()
-    }
-  }
-)
+watch(() => game.deadlineAt, updateTimer)
+watch(() => game.finished, (finished) => {
+  if (finished) stopTimer()
+})
 
 onMounted(() => {
-  if (!game.finished) {
-    startTimer()
-  }
+  updateTimer()
+  interval = setInterval(updateTimer, 200)
 })
 
 onUnmounted(() => {

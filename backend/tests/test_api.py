@@ -1,4 +1,6 @@
 from datetime import datetime, timezone
+import json
+import time
 
 import pytest
 from httpx import AsyncClient
@@ -7,6 +9,13 @@ from sqlalchemy import select
 from app.config import settings
 from app.database import async_session_factory
 from app.models import MatchRecord, MoveRecord, Word
+from app.redis_client import cache_get, cache_set
+
+
+async def expire_match(match_id: str) -> None:
+    cached = json.loads(await cache_get(f"match:{match_id}"))
+    cached["deadline_at"] = time.time() - 1
+    await cache_set(f"match:{match_id}", json.dumps(cached), ex=86400)
 
 
 @pytest.mark.asyncio
@@ -32,6 +41,9 @@ async def test_match_flow_api(client: AsyncClient):
     assert res.status_code == 201
     state = res.json()
     match_id = state["match_id"]
+    assert len(match_id) == 36
+    # UUIDs contain dashes and hex chars
+    assert all(char in "0123456789abcdef-" for char in match_id)
     assert state["finished"] is False
     assert state["to_move"] == 0
     assert state["lives"] == [3, 3]
@@ -57,7 +69,8 @@ async def test_match_flow_api(client: AsyncClient):
     assert "clue" in hint
     assert hint["word_length"] == state["word_length"]
 
-    # 5. Trigger timeout: should reduce player 0 lives from 3 to 2, still in part 1
+    # 5. Trigger timeout only after the server-owned deadline has elapsed.
+    await expire_match(match_id)
     res = await client.post(f"/v1/matches/{match_id}/timeout", json={"player": 0})
     assert res.status_code == 200
     updated = res.json()
@@ -76,6 +89,34 @@ async def test_match_flow_api(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_timeout_is_rejected_before_server_deadline(client: AsyncClient):
+    response = await client.post(
+        "/v1/matches", json={"lang": "en", "level": "basic", "mode": "duo"}
+    )
+    state = response.json()
+    deadline = state["deadline_at"]
+
+    response = await client.post(
+        f"/v1/matches/{state['match_id']}/timeout", json={"player": 0}
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "too_early"
+
+    current = await client.get(f"/v1/matches/{state['match_id']}")
+    assert current.json()["lives"] == [3, 3]
+    assert current.json()["deadline_at"] == deadline
+
+
+@pytest.mark.asyncio
+async def test_public_root_has_no_personal_contact_details(client: AsyncClient):
+    response = await client.get("/")
+    assert response.status_code == 200
+    assert "developpeur" not in response.json()
+    assert "email" not in response.json()
+    assert "contact" not in response.json()
+
+
+@pytest.mark.asyncio
 async def test_adaptive_timer_persists_between_parts(client: AsyncClient):
     response = await client.post(
         "/v1/matches",
@@ -84,6 +125,7 @@ async def test_adaptive_timer_persists_between_parts(client: AsyncClient):
     match_id = response.json()["match_id"]
 
     for _ in range(3):
+        await expire_match(match_id)
         response = await client.post(
             f"/v1/matches/{match_id}/timeout",
             json={"player": 0},
@@ -95,6 +137,24 @@ async def test_adaptive_timer_persists_between_parts(client: AsyncClient):
 
     response = await client.get(f"/v1/matches/{match_id}")
     assert response.json()["time_limit"] == 90
+
+
+@pytest.mark.asyncio
+async def test_move_after_deadline_triggers_timeout(client: AsyncClient):
+    res = await client.post("/v1/matches", json={"lang": "en", "level": "basic", "mode": "duo"})
+    state = res.json()
+    match_id = state["match_id"]
+
+    await expire_match(match_id)
+
+    res = await client.post(
+        f"/v1/matches/{match_id}/moves",
+        json={"player": 0, "word": "cold"}
+    )
+    assert res.status_code == 200
+    updated = res.json()
+    assert updated["lives"] == [2, 3]
+    assert "life_lost" in updated["event"]
 
 
 @pytest.mark.asyncio

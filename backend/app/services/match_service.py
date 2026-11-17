@@ -9,7 +9,7 @@ from typing import Any
 
 from sqlalchemy import desc, select
 
-from app.core import GameError, Match, MAX_LIVES, TIME_LIMITS
+from app.core import GameError, Match, Pack, MAX_LIVES, TIME_LIMITS
 from app.database import async_session_factory
 from app.models import MatchRecord, MoveRecord, User
 from app.redis_client import cache_delete, cache_get, cache_set
@@ -23,6 +23,49 @@ MATCH_TTL = 3600 * 24  # 24 hours in Redis
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _deadline_timestamp(time_limit: int) -> float:
+    return time.time() + time_limit
+
+
+def _deadline_iso(timestamp: float | None) -> str | None:
+    if timestamp is None:
+        return None
+    return datetime.fromtimestamp(timestamp, timezone.utc).isoformat()
+
+
+def _match_from_data(data: dict[str, Any], pack: Pack) -> Match:
+    match = Match.__new__(Match)
+    match.pack = pack
+    match.level = data["level"]
+    match.mode = data["mode"]
+    match.play_all_parts = data["play_all_parts"]
+    match.rng = Match.__dataclass_fields__["rng"].default_factory()
+    match.id = data["match_id"]
+    match.scores = list(data["scores"])
+    match.lives = list(data.get("lives", [MAX_LIVES, MAX_LIVES]))
+    match.word_length = data.get("word_length", len(data["current"]))
+    match.part = data["part"]
+    match.time_adjustment = data.get("time_adjustment", 0)
+    match.used = set(data["used"])
+    match.current = data["current"]
+    match.to_move = data["to_move"]
+    match.finished = data["finished"]
+    match.winner = data["winner"]
+    match.last_event = data["last_event"]
+    deadline = data.get("deadline_at")
+    if deadline is None:
+        # Existing Redis entries get one deadline when first read after upgrade.
+        deadline = _deadline_timestamp(data.get("time_limit", TIME_LIMITS.get(match.level, 80)))
+        data["deadline_at"] = deadline
+    remaining = max(0.0, deadline - time.time())
+    match.turn_started = time.monotonic() - max(0.0, match.time_limit - remaining)
+    return match
+
+
+def _state_with_deadline(match: Match, deadline: float) -> dict[str, Any]:
+    return {**match.state(), "deadline_at": _deadline_iso(deadline)}
 
 
 class MatchService:
@@ -58,7 +101,7 @@ class MatchService:
             "used": list(match.used),
             "current": match.current,
             "to_move": match.to_move,
-            "turn_started": time.time(),
+            "deadline_at": _deadline_timestamp(match.time_limit),
             "finished": match.finished,
             "winner": match.winner,
             "last_event": match.last_event,
@@ -84,7 +127,7 @@ class MatchService:
             session.add(record)
             await session.commit()
 
-        return match.state()
+        return _state_with_deadline(match, match_data["deadline_at"])
 
     @staticmethod
     async def get_match_state(match_id: str) -> dict[str, Any]:
@@ -92,6 +135,11 @@ class MatchService:
         raw = await cache_get(f"match:{match_id}")
         if raw:
             data = json.loads(raw)
+            deadline = data.get("deadline_at")
+            if deadline is None:
+                deadline = _deadline_timestamp(data.get("time_limit", TIME_LIMITS.get(data["level"], 80)))
+                data["deadline_at"] = deadline
+                await cache_set(f"match:{match_id}", json.dumps(data), ex=MATCH_TTL)
 
             return {
                 "match_id": data["match_id"],
@@ -102,6 +150,7 @@ class MatchService:
                 "current_word": data["current"],
                 "to_move": data["to_move"],
                 "time_limit": data.get("time_limit", TIME_LIMITS.get(data["level"], 80)),
+                "deadline_at": _deadline_iso(deadline),
                 "used_count": len(data["used"]),
                 "finished": data["finished"],
                 "winner": data["winner"],
@@ -122,6 +171,7 @@ class MatchService:
                 "current_word": "",
                 "to_move": 0,
                 "time_limit": 80,
+                "deadline_at": None,
                 "used_count": record.total_moves,
                 "finished": True,
                 "winner": record.winner,
@@ -136,52 +186,39 @@ class MatchService:
 
         data = json.loads(raw)
         pack = await get_or_load_pack(data["lang"])
+        match = _match_from_data(data, pack)
 
-        # Rehydrate Match instance
-        match = Match.__new__(Match)
-        match.pack = pack
-        match.level = data["level"]
-        match.mode = data["mode"]
-        match.play_all_parts = data["play_all_parts"]
-        match.rng = Match.__dataclass_fields__["rng"].default_factory()
-        match.id = data["match_id"]
-        match.scores = list(data["scores"])
-        match.lives = list(data.get("lives", [MAX_LIVES, MAX_LIVES]))
-        match.word_length = data.get("word_length", len(data["current"]))
-        match.part = data["part"]
-        match.time_adjustment = data.get("time_adjustment", 0)
-        match.used = set(data["used"])
-        match.current = data["current"]
-        match.to_move = data["to_move"]
-        match.turn_started = data.get("monotonic_turn", time.monotonic())
-        match.finished = data["finished"]
-        match.winner = data["winner"]
-        match.last_event = data["last_event"]
+        # Enforce server-side deadline
+        deadline = data.get("deadline_at")
+        if deadline and time.time() > deadline:
+            state = match.timeout(player)
+        else:
+            # Execute move
+            state = match.play(player, word)
 
-        # Execute move
-        state = match.play(player, word)
-
-        # Persist MoveRecord
+        # Persist MoveRecord if it was a valid move (not a forced timeout)
         async with async_session_factory() as session:
-            move_rec = MoveRecord(
-                match_id=match_id,
-                player=player,
-                word=word,
-                part=match.part,
-                created_at=_utcnow(),
-            )
-            session.add(move_rec)
+            if not state.get("event", "").startswith("life_lost") and not state.get("event", "").startswith("part_"):
+                move_rec = MoveRecord(
+                    match_id=match_id,
+                    player=player,
+                    word=word,
+                    part=match.part,
+                    created_at=_utcnow(),
+                )
+                session.add(move_rec)
 
             record = await session.get(MatchRecord, match_id)
             if record:
                 record.scores = match.scores
-                record.total_moves = data.get("total_moves", 0) + 1
+                record.total_moves = data.get("total_moves", 0) + (1 if "move_ok" in state.get("event", "") else 0)
                 if match.finished:
                     record.finished_at = _utcnow()
                     record.winner = match.winner
             await session.commit()
 
         # Update Redis cache
+        deadline = _deadline_timestamp(match.time_limit)
         data.update({
             "part": match.part,
             "time_adjustment": match.time_adjustment,
@@ -192,7 +229,7 @@ class MatchService:
             "used": list(match.used),
             "current": match.current,
             "to_move": match.to_move,
-            "monotonic_turn": time.monotonic(),
+            "deadline_at": deadline,
             "finished": match.finished,
             "winner": match.winner,
             "last_event": match.last_event,
@@ -200,7 +237,7 @@ class MatchService:
         })
         await cache_set(f"match:{match.id}", json.dumps(data), ex=MATCH_TTL)
 
-        return state
+        return {**state, "deadline_at": _deadline_iso(deadline)}
 
     @staticmethod
     async def timeout(match_id: str, player: int) -> dict[str, Any]:
@@ -211,25 +248,15 @@ class MatchService:
         data = json.loads(raw)
         pack = await get_or_load_pack(data["lang"])
 
-        match = Match.__new__(Match)
-        match.pack = pack
-        match.level = data["level"]
-        match.mode = data["mode"]
-        match.play_all_parts = data["play_all_parts"]
-        match.rng = Match.__dataclass_fields__["rng"].default_factory()
-        match.id = data["match_id"]
-        match.scores = list(data["scores"])
-        match.lives = list(data.get("lives", [MAX_LIVES, MAX_LIVES]))
-        match.word_length = data.get("word_length", len(data["current"]))
-        match.part = data["part"]
-        match.time_adjustment = data.get("time_adjustment", 0)
-        match.used = set(data["used"])
-        match.current = data["current"]
-        match.to_move = data["to_move"]
-        match.turn_started = 0.0
-        match.finished = data["finished"]
-        match.winner = data["winner"]
-        match.last_event = data["last_event"]
+        deadline = data.get("deadline_at")
+        if deadline is None:
+            deadline = _deadline_timestamp(data.get("time_limit", TIME_LIMITS.get(data["level"], 80)))
+            data["deadline_at"] = deadline
+            await cache_set(f"match:{match_id}", json.dumps(data), ex=MATCH_TTL)
+        if time.time() < deadline:
+            raise GameError("too_early", "Le temps du tour n’est pas encore écoulé.")
+
+        match = _match_from_data(data, pack)
 
         state = match.timeout(player)
 
@@ -242,6 +269,7 @@ class MatchService:
                     record.winner = match.winner
             await session.commit()
 
+        deadline = _deadline_timestamp(match.time_limit)
         data.update({
             "part": match.part,
             "time_adjustment": match.time_adjustment,
@@ -252,14 +280,14 @@ class MatchService:
             "used": list(match.used),
             "current": match.current,
             "to_move": match.to_move,
-            "monotonic_turn": time.monotonic(),
+            "deadline_at": deadline,
             "finished": match.finished,
             "winner": match.winner,
             "last_event": match.last_event,
         })
         await cache_set(f"match:{match.id}", json.dumps(data), ex=MATCH_TTL)
 
-        return state
+        return {**state, "deadline_at": _deadline_iso(deadline)}
 
     @staticmethod
     async def get_hint(match_id: str) -> dict[str, Any]:

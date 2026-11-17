@@ -181,7 +181,7 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div v-if="game.errorMessage" class="error-text animate-shake" role="alert">
+        <div v-if="game.errorMessage" class="error-text animate-shake" role="alert" aria-live="assertive">
           ⚠️ {{ game.errorMessage }}
         </div>
       </div>

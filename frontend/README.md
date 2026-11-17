@@ -25,7 +25,7 @@ npm run build
 npm run preview
 ```
 
-`npm run build` produit les fichiers statiques de production dans `dist/`. Le projet ne configure pas actuellement de tests frontend ni de déploiement web.
+`npm test` exécute les tests de composants avec Vitest et Vue Test Utils. `npm run build` produit les fichiers statiques de production dans `dist/`. Aucun déploiement web n’est configuré.
 
 ## Organisation
 
@@ -33,5 +33,8 @@ npm run preview
 - `src/components/` : éléments réutilisables, dont le clavier, le chrono et la chaîne de mots.
 - `src/stores/` : état Pinia du jeu et de l’authentification.
 - `vite.config.js` : alias `@` et proxy de développement vers l’API.
+- `src/components/Timer.vue` : compte à rebours synchronisé sur l’échéance UTC renvoyée par le backend.
 
 Les comptes sont facultatifs; le mode invité reste disponible. L’authentification utilise un cookie HttpOnly et une protection CSRF. Aucun e-mail n’est demandé, donc aucun parcours de récupération de mot de passe n’est prévu.
+
+Le duel est local, sur le même écran. L’API ne fournit pas de synchronisation multijoueur WebSocket.

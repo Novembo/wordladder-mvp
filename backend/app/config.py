@@ -29,12 +29,6 @@ class Settings(BaseSettings):
     max_word_length: int = 8
     supported_langs: list[str] = ["en", "fr", "es"]
 
-    # Developer / Author Information
-    dev_prenom: str = "Obed .L .S"
-    dev_nom: str = "VODOUHE"
-    dev_email: str = "leonardovodouhe06@gmail.com"
-    dev_contact: str = "+229 01 53 95 45 01"
-
     model_config = {"env_file": ".env", "env_prefix": "WL_"}
 
     @property

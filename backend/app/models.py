@@ -87,7 +87,7 @@ class MatchRecord(Base):
 
     __tablename__ = "match_records"
 
-    id: Mapped[str] = mapped_column(String(8), primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
     lang: Mapped[str] = mapped_column(String(5), nullable=False)
     level: Mapped[str] = mapped_column(String(20), nullable=False)
     mode: Mapped[str] = mapped_column(String(10), nullable=False)
@@ -107,7 +107,7 @@ class MoveRecord(Base):
     __tablename__ = "move_records"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    match_id: Mapped[str] = mapped_column(String(8), nullable=False, index=True)
+    match_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     player: Mapped[int] = mapped_column(Integer, nullable=False)
     word: Mapped[str] = mapped_column(String(40), nullable=False)
     part: Mapped[int] = mapped_column(Integer, nullable=False)

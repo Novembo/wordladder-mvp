@@ -99,14 +99,24 @@ def test_three_lives_system_and_timeout():
     assert m.lives == [3, 1]
     assert m.part == 1
 
-    # 3rd timeout for Player 1: loses last life -> part ends, Player 0 gets the point
+    # 3rd timeout for Player 1: loses last life -> part ends
     m.timeout(1)
     assert m.scores == [1, 0]
     assert m.part == 2
     assert m.time_limit == 90
-    # Lives reset to 3 for the new round
     assert m.lives == [3, 3]
 
+
+def test_turn_expires_at_the_exact_server_duration(monkeypatch):
+    m = Match(make_pack(), "basic", "duo", rng=random.Random(5))
+    now = [500.0]
+    monkeypatch.setattr("app.core.time.monotonic", lambda: now[0])
+    m.turn_started = 420.0
+
+    now[0] = 499.999
+    assert not m._expired()
+    now[0] = 500.0
+    assert m._expired()
 
 def test_adaptive_timer_gets_faster_after_a_dead_end():
     graph = {

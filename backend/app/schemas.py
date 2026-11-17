@@ -1,6 +1,8 @@
 """Pydantic request / response schemas."""
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
@@ -33,6 +35,7 @@ class MatchState(BaseModel):
     current_word: str
     to_move: int
     time_limit: int
+    deadline_at: datetime | None = None
     used_count: int
     finished: bool
     winner: int | None

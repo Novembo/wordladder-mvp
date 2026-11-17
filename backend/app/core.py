@@ -13,7 +13,6 @@ from .services.dictionary import strip_accents
 TIME_LIMITS = {"basic": 80, "intermediate": 60, "advanced": 40}
 LEVELS = tuple(TIME_LIMITS)
 MIN_START_NEIGHBORS = 3
-GRACE_SECONDS = 1.0
 MAX_LIVES = 3
 
 
@@ -50,7 +49,7 @@ class Match:
     mode: str  # "solo" (vs computer) or "duo" (pass & play or 2-player)
     play_all_parts: bool = False
     rng: random.Random = field(default_factory=random.Random)
-    id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
     scores: list[int] = field(default_factory=lambda: [0, 0])
     lives: list[int] = field(default_factory=lambda: [MAX_LIVES, MAX_LIVES])
     part: int = 1
@@ -206,7 +205,7 @@ class Match:
             raise GameError("not_your_turn", "Ce n'est pas votre tour.")
 
     def _expired(self) -> bool:
-        return time.monotonic() - self.turn_started > self.time_limit + GRACE_SECONDS
+        return time.monotonic() - self.turn_started >= self.time_limit
 
     def _run_computer(self):
         if self.mode != "solo" or self.finished or self.to_move != 1:

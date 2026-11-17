@@ -48,13 +48,13 @@ function handleGoHome() {
 <template>
   <div class="result-view container">
     <div class="result-card glass-panel animate-pop">
-      <div class="trophy-icon">
+      <div class="trophy-icon" aria-hidden="true">
         <span v-if="isP0Winner">🏆</span>
         <span v-else-if="game.mode === 'solo'">🤖</span>
         <span v-else>⚔️</span>
       </div>
 
-      <h1 class="result-title">{{ title }}</h1>
+      <h1 class="result-title" role="status" aria-live="polite">{{ title }}</h1>
       <p class="result-subtitle">{{ subtitle }}</p>
 
       <!-- Score display -->

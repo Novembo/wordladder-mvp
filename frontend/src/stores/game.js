@@ -17,6 +17,7 @@ export const useGameStore = defineStore('game', () => {
   const wordHistory = ref([])
   const toMove = ref(0)
   const timeLimit = ref(80)
+  const deadlineAt = ref(null)
   const usedCount = ref(0)
   const finished = ref(false)
   const winner = ref(null)
@@ -166,6 +167,7 @@ export const useGameStore = defineStore('game', () => {
 
       const data = await res.json()
       if (!res.ok) {
+        if (data.detail?.code === 'too_early') return false
         throw new Error(data.detail?.message || 'Impossible de déclarer la fin du temps')
       }
 
@@ -173,8 +175,10 @@ export const useGameStore = defineStore('game', () => {
       if (data.current_word && !data.finished && data.event.includes('part_')) {
         wordHistory.value.push({ word: data.current_word, player: -1 })
       }
+      return true
     } catch (e) {
       triggerError(e instanceof Error ? e.message : 'Impossible de déclarer la fin du temps')
+      return false
     }
   }
 
@@ -206,6 +210,7 @@ export const useGameStore = defineStore('game', () => {
     currentWord.value = data.current_word
     toMove.value = data.to_move
     timeLimit.value = data.time_limit
+    deadlineAt.value = data.deadline_at || null
     usedCount.value = data.used_count
     finished.value = data.finished
     winner.value = data.winner
@@ -217,6 +222,7 @@ export const useGameStore = defineStore('game', () => {
     wordHistory.value = []
     finished.value = false
     winner.value = null
+    deadlineAt.value = null
     errorMessage.value = ''
     currentHint.value = null
     scores.value = [0, 0]
@@ -236,6 +242,7 @@ export const useGameStore = defineStore('game', () => {
     wordHistory,
     toMove,
     timeLimit,
+    deadlineAt,
     usedCount,
     finished,
     winner,

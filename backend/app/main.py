@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .database import init_db
 from .redis_client import close_redis, get_redis
-from .routers import auth, leaderboard, matches, maintenance, packs, ws
+from .routers import auth, leaderboard, matches, maintenance, packs
 from .schemas import HealthResponse
 from .services.graph_service import get_or_load_pack
 
@@ -33,7 +33,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Word Ladder EdTech API",
         version="1.0.0",
-        description="Educational Word Ladder game API with real-time state caching, vocab levels & multilingual graph.",
+        description="Educational Word Ladder game API with local pass-and-play, vocabulary levels, and multilingual dictionaries.",
         lifespan=lifespan,
     )
 
@@ -52,7 +52,6 @@ def create_app() -> FastAPI:
     app.include_router(packs.router)
     app.include_router(leaderboard.router)
     app.include_router(maintenance.router)
-    app.include_router(ws.router)
 
     @app.get("/")
     async def root():
@@ -60,12 +59,6 @@ def create_app() -> FastAPI:
             "title": "Word Ladder EdTech API",
             "version": "1.0.0",
             "description": "Jeu éducatif de vocabulaire multilingue",
-            "developpeur": {
-                "prenom": settings.dev_prenom,
-                "nom": settings.dev_nom,
-                "email": settings.dev_email,
-                "contact": settings.dev_contact,
-            },
             "endpoints": {
                 "documentation": "/docs",
                 "sante": "/health",
