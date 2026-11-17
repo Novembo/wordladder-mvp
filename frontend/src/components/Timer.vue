@@ -3,7 +3,13 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useGameStore } from '@/stores/game'
 
 const game = useGameStore()
-const timeLeft = ref(game.timeLimit)
+function getRemainingSeconds() {
+  if (game.finished) return 0
+  const deadline = Date.parse(game.deadlineAt || '')
+  if (!Number.isFinite(deadline)) return game.timeLimit
+  return Math.ceil(Math.max(0, deadline - Date.now()) / 1000)
+}
+const timeLeft = ref(getRemainingSeconds())
 let interval = null
 let timeoutPending = false
 let handledDeadline = null

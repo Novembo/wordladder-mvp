@@ -52,5 +52,5 @@ def test_match_uuid_migration_preserves_existing_archive(tmp_path):
         }
 
     assert match == ("deadbeef", "[1,0]")
-    assert match_id_type["id"] == "VARCHAR(32)"
-    assert move_id_type["match_id"] == "VARCHAR(32)"
+    assert match_id_type["id"] == "VARCHAR(36)"
+    assert move_id_type["match_id"] == "VARCHAR(36)"

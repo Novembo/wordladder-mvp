@@ -116,7 +116,6 @@ button {
   }
 }
 
-.container {/* Friendly colorful backdrop lights */
 body::before {
   content: '';
   position: fixed;
