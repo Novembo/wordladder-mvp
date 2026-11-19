@@ -1,7 +1,20 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-const API_BASE = '/v1/auth'
+const API_BASE = (window.API_BASE || '') + '/v1/auth'
+
+/**
+ * Helper pour parser le JSON en évitant l'erreur "unexpected character"
+ * si le serveur renvoie du HTML (ex: 404 GitHub Pages).
+ */
+async function safeParseJson(response) {
+  const contentType = response.headers.get('content-type')
+  if (contentType && contentType.includes('application/json')) {
+    return await response.json()
+  }
+  const text = await response.text()
+  return { detail: text || `Erreur serveur (${response.status})` }
+}
 
 export const useAuthStore = defineStore('auth', () => {
   const guestUsername = localStorage.getItem('wl_username') || 'Joueur'
@@ -36,7 +49,7 @@ export const useAuthStore = defineStore('auth', () => {
       try {
         const response = await fetch(`${API_BASE}/me`, { credentials: 'same-origin' })
         if (response.ok) {
-          applyUser(await response.json())
+          applyUser(await safeParseJson(response))
         } else {
           clearUser()
         }
@@ -60,7 +73,7 @@ export const useAuthStore = defineStore('auth', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(credentials),
       })
-      const data = await response.json()
+      const data = await safeParseJson(response)
       if (!response.ok) {
         throw new Error(data.detail || 'La demande a échoué')
       }
@@ -92,7 +105,7 @@ export const useAuthStore = defineStore('auth', () => {
         headers: { 'X-CSRF-Token': csrfToken.value },
       })
       if (!response.ok) {
-        const data = await response.json()
+        const data = await safeParseJson(response)
         throw new Error(data.detail || 'Impossible de fermer la session')
       }
       clearUser()

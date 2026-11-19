@@ -12,6 +12,18 @@ const resetLoading = ref(false)
 const resetError = ref('')
 const resetMessage = ref('')
 
+/**
+ * Helper pour parser le JSON en évitant l'erreur "unexpected character"
+ */
+async function safeParseJson(response) {
+  const contentType = response.headers.get('content-type')
+  if (contentType && contentType.includes('application/json')) {
+    return await response.json()
+  }
+  const text = await response.text()
+  return { detail: text || `Erreur serveur (${response.status})` }
+}
+
 const filters = [
   { code: 'all', label: 'Toutes les langues', flag: '🌍' },
   { code: 'fr', label: 'Français', flag: '🇫🇷' },
@@ -25,10 +37,11 @@ async function fetchLeaderboard(lang = 'all') {
   error.value = null
 
   try {
-    const url = lang === 'all' ? '/v1/leaderboard' : `/v1/leaderboard?lang=${lang}`
+    const apiBase = window.API_BASE || ''
+    const url = lang === 'all' ? `${apiBase}/v1/leaderboard` : `${apiBase}/v1/leaderboard?lang=${lang}`
     const res = await fetch(url)
     if (!res.ok) throw new Error('Impossible de charger le classement')
-    entries.value = await res.json()
+    entries.value = await safeParseJson(res)
   } catch (err) {
     error.value = err.message
   } finally {
@@ -38,9 +51,10 @@ async function fetchLeaderboard(lang = 'all') {
 
 async function checkResetAvailability() {
   try {
-    const res = await fetch('/v1/maintenance/reset')
+    const apiBase = window.API_BASE || ''
+    const res = await fetch(`${apiBase}/v1/maintenance/reset`)
     if (!res.ok) throw new Error('Impossible de vérifier les options de maintenance')
-    resetEnabled.value = (await res.json()).enabled
+    resetEnabled.value = (await safeParseJson(res)).enabled
   } catch (err) {
     resetError.value = err instanceof Error ? err.message : 'Impossible de vérifier les options de maintenance'
   }
@@ -58,11 +72,12 @@ async function resetDatabase() {
   resetMessage.value = ''
   try {
     await auth.initialize()
-    const res = await fetch('/v1/maintenance/reset', {
+    const apiBase = window.API_BASE || ''
+    const res = await fetch(`${apiBase}/v1/maintenance/reset`, {
       method: 'POST',
       headers: auth.csrfToken ? { 'X-CSRF-Token': auth.csrfToken } : {},
     })
-    const data = await res.json()
+    const data = await safeParseJson(res)
     if (!res.ok) throw new Error(data.detail || 'La réinitialisation a échoué')
     resetMessage.value = `${data.deleted_matches} partie(s) archivée(s) et ${data.deleted_moves} coup(s) supprimé(s).`
     await fetchLeaderboard(activeLang.value)

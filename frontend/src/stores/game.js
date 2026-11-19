@@ -2,7 +2,21 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useAuthStore } from './auth'
 
-const API_BASE = '/v1'
+const API_BASE = (window.API_BASE || '') + '/v1'
+
+/**
+ * Helper pour parser le JSON en évitant l'erreur "unexpected character"
+ * si le serveur renvoie du HTML (ex: 404 GitHub Pages).
+ */
+async function safeParseJson(response) {
+  const contentType = response.headers.get('content-type')
+  if (contentType && contentType.includes('application/json')) {
+    return await response.json()
+  }
+  // Si ce n'est pas du JSON, on renvoie un objet avec le texte brut ou une erreur par défaut
+  const text = await response.text()
+  return { detail: { message: text || `Erreur serveur (${response.status})` } }
+}
 
 export const useGameStore = defineStore('game', () => {
   const matchId = ref(null)
@@ -87,11 +101,11 @@ export const useGameStore = defineStore('game', () => {
       })
 
       if (!res.ok) {
-        const err = await res.json()
+        const err = await safeParseJson(res)
         throw new Error(err.detail?.message || 'Erreur lors de la création du match')
       }
 
-      const data = await res.json()
+      const data = await safeParseJson(res)
       applyState(data)
       if (data.current_word) {
         wordHistory.value.push({ word: data.current_word, player: -1 })
@@ -127,7 +141,7 @@ export const useGameStore = defineStore('game', () => {
         })
       })
 
-      const data = await res.json()
+      const data = await safeParseJson(res)
 
       if (!res.ok) {
         const msg = data.detail?.message || 'Coup invalide'
@@ -165,7 +179,7 @@ export const useGameStore = defineStore('game', () => {
         body: JSON.stringify({ player: toMove.value })
       })
 
-      const data = await res.json()
+      const data = await safeParseJson(res)
       if (!res.ok) {
         if (data.detail?.code === 'too_early') return false
         throw new Error(data.detail?.message || 'Impossible de déclarer la fin du temps')
@@ -188,7 +202,7 @@ export const useGameStore = defineStore('game', () => {
       const res = await fetch(`${API_BASE}/matches/${matchId.value}/hint`, {
         method: 'POST'
       })
-      const data = await res.json()
+      const data = await safeParseJson(res)
       if (!res.ok) {
         throw new Error(data.detail?.message || 'Impossible de récupérer un indice')
       }
