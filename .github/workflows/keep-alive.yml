@@ -1,0 +1,20 @@
+name: Ping Backend (Keep Alive Free Tier)
+
+on:
+  schedule:
+    # Toutes les 14 minutes pour empêcher l'endormissement du free tier Render
+    - cron: '*/14 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping health endpoint
+        run: |
+          URL="${{ secrets.API_BASE_URL }}"
+          if [ -z "$URL" ]; then
+            URL="https://wordladder-api.onrender.com"
+          fi
+          echo "Pinging ${URL}/health ..."
+          curl -s -m 30 -f "${URL}/health" || echo "Backend unreachable or waking up"

@@ -1,40 +1,67 @@
 # Word Ladder — Frontend
 
-Interface du jeu développée avec Vue 3, Vite, Vue Router et Pinia. Le dépôt parent contient l’API, les instructions pour démarrer les deux services et les détails du projet : [README principal](../README.md).
+Interface web développée avec **Vue 3 (Composition API / `<script setup>`)**, **Vite**, **Vue Router 4** et **Pinia**.
+
+🎮 **Démo en ligne :** [https://novembo.github.io/wordladder-mvp/](https://novembo.github.io/wordladder-mvp/)  
+Documentation générale et backend : [README principal](../README.md).
+
+---
+
+## Particularités Architecturales
+
+### 1. Fonctionnement Dual (Connecté ou 100% Autonome)
+Le frontend est conçu pour être résilient et fonctionnel même sans serveur :
+- **Mode Connecté (API FastAPI)** : Lorsque le backend local ou distant est joignable, les parties, sessions et classements sont synchronisés via l'API.
+- **Mode Autonome Direct (Client-Side)** : Si le backend est éteint, inaccessible ou en veille (ex. hébergement statique GitHub Pages sans serveur payant), le store Pinia bascule automatiquement et instantanément sur le moteur interne (`src/services/localEngine.js`). Les dictionnaires (`public/packs/*.json`) sont chargés de façon statique et les scores sont conservés dans `localStorage`.
+
+### 2. Accessibilité & Ergonomie Mobile
+- Clavier virtuel tactile responsive adapté aux petits écrans et disposition ergonomique.
+- Support natif complet du clavier physique.
+- Design responsive avec CSS moderne (variables, contrastes conformes WCAG, animations fluides).
+
+---
 
 ## Prérequis
 
-- Node.js 22 (version utilisée par le workflow CI).
-- Le backend FastAPI local, nécessaire aux fonctionnalités qui utilisent l’API.
+- **Node.js 22**
+- Backend FastAPI (optionnel pour jouer en mode local connecté, inutile en mode autonome).
 
-## Démarrer
+---
 
-Depuis ce dossier :
+## Commandes
+
+Depuis le dossier `frontend/` :
 
 ```bash
+# Installation des dépendances
 npm ci
+
+# Serveur de développement avec HMR
 npm run dev
-```
 
-Ouvre `http://localhost:5173`. Le proxy Vite transmet `/v1` et `/health` à `http://127.0.0.1:8000`; démarre donc aussi le backend selon les instructions du [README principal](../README.md).
+# Exécution de la suite de tests (Vitest + JSDOM)
+npm test
 
-## Vérifier et construire
-
-```bash
+# Build de production (assets minifiés dans dist/)
 npm run build
+
+# Prévisualisation du build de production
 npm run preview
 ```
 
-`npm test` exécute les tests de composants avec Vitest et Vue Test Utils. `npm run build` produit les fichiers statiques de production dans `dist/`. Aucun déploiement web n’est configuré.
+---
 
-## Organisation
+## Structure du Code
 
-- `src/views/` : accueil, configuration, jeu, résultats et classement.
-- `src/components/` : éléments réutilisables, dont le clavier, le chrono et la chaîne de mots.
-- `src/stores/` : état Pinia du jeu et de l’authentification.
-- `vite.config.js` : alias `@` et proxy de développement vers l’API.
-- `src/components/Timer.vue` : compte à rebours synchronisé sur l’échéance UTC renvoyée par le backend.
+- `public/packs/` : Dictionnaires multilingues JSON précalculés (graphes d'adjacence et niveaux de difficulté pour `fr`, `en`, `es`).
+- `src/views/` : Vues principales (Accueil, Assistant de configuration `SetupWizardView`, Arène de jeu `GameView`, Écran de fin `ResultView`, Classement `LeaderboardView`).
+- `src/components/` : Composants UI réutilisables (clavier virtuel `Keyboard`, compte à rebours circulaire SVG `Timer`, chaîne de mots `WordChain`, tableau des scores `ScoreBoard`, indices `HintBubble`).
+- `src/stores/` : Stores Pinia réactifs (`game.js` pour la logique de partie et le fallback, `auth.js` pour la gestion des sessions et préférences).
+- `src/services/` : Moteur de jeu autonome côté client (`localEngine.js`) avec validation des règles, IA du robot et indices sémantiques.
+- `vite.config.js` : Configuration du bundling, de la base URL pour GitHub Actions et du proxy de développement vers l'API (`/v1` et `/health`).
 
-Les comptes sont facultatifs; le mode invité reste disponible. L’authentification utilise un cookie HttpOnly et une protection CSRF. Aucun e-mail n’est demandé, donc aucun parcours de récupération de mot de passe n’est prévu.
+---
 
-Le duel est local, sur le même écran. L’API ne fournit pas de synchronisation multijoueur WebSocket.
+## Déploiement
+
+Le frontend est automatiquement compilé et déployé sur **GitHub Pages** via le workflow GitHub Actions `.github/workflows/deploy-pages.yml` à chaque commit sur `main`. Les dictionnaires statiques sont copiés dans `dist/packs/` lors du build.

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useAuthStore } from './auth'
+import { localEngine } from '@/services/localEngine'
 
 const API_BASE = (window.API_BASE || '') + '/v1'
 
@@ -50,6 +51,7 @@ export const useGameStore = defineStore('game', () => {
   const loading = ref(false)
   const errorMessage = ref('')
   const shakeInput = ref(false)
+  const isLocal = ref(false)
 
   const isMyTurn = computed(() => {
     if (finished.value) return false
@@ -82,21 +84,54 @@ export const useGameStore = defineStore('game', () => {
     currentHint.value = null
   }
 
+  function saveToLocalLeaderboard() {
+    try {
+      const raw = localStorage.getItem('wl_local_leaderboard')
+      const list = raw ? JSON.parse(raw) : []
+      const auth = useAuthStore()
+      list.unshift({
+        id: matchId.value,
+        player_name: auth.username || 'Joueur',
+        score: scores.value[0],
+        total_moves: wordHistory.value.length,
+        lang: lang.value,
+        level: level.value,
+        mode: mode.value,
+        finished_at: new Date().toISOString(),
+      })
+      localStorage.setItem('wl_local_leaderboard', JSON.stringify(list.slice(0, 50)))
+    } catch (e) {
+      console.warn('Erreur sauvegarde classement local :', e)
+    }
+  }
+
   async function createMatch(selectedLang, selectedLevel, selectedMode) {
     loading.value = true
     clearError()
     clearHint()
     wordHistory.value = []
 
+    lang.value = selectedLang
+    level.value = selectedLevel
+    mode.value = selectedMode
+
+    const auth = useAuthStore()
     try {
-      const auth = useAuthStore()
       await auth.initialize()
-      lang.value = selectedLang
-      level.value = selectedLevel
-      mode.value = selectedMode
+    } catch {
+      // Ignore initial auth error for guests
+    }
+
+    let data = null
+    let fallbackToLocal = false
+
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 3500)
 
       const res = await fetch(`${API_BASE}/matches`, {
         method: 'POST',
+        signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
           ...(auth.csrfToken ? { 'X-CSRF-Token': auth.csrfToken } : {}),
@@ -105,24 +140,52 @@ export const useGameStore = defineStore('game', () => {
           lang: selectedLang,
           level: selectedLevel,
           mode: selectedMode,
-          play_all_parts: false
-        })
+          play_all_parts: false,
+        }),
       })
+      clearTimeout(timeoutId)
 
-      if (!res.ok) {
+      if (res.ok) {
+        data = await safeParseJson(res)
+        isLocal.value = false
+      } else {
         const err = await safeParseJson(res)
-        throw new Error(err.detail?.message || 'Erreur lors de la création du match')
+        // 404 (Render absent), 405 (GitHub Pages statique), 500+ (serveur hors service)
+        if (res.status === 404 || res.status === 405 || res.status >= 500) {
+          console.warn(`Serveur distant indisponible (${res.status}). Bascule vers le moteur autonome direct.`)
+          fallbackToLocal = true
+        } else {
+          throw new Error(err.detail?.message || 'Erreur lors de la création du match')
+        }
       }
+    } catch (e) {
+      if (e.message && !e.message.includes('Erreur lors de la création du match')) {
+        console.warn('Serveur distant injoignable, bascule vers le moteur de jeu intégré dans le navigateur :', e)
+        fallbackToLocal = true
+      } else {
+        triggerError(e.message)
+        loading.value = false
+        throw e
+      }
+    }
 
-      const data = await safeParseJson(res)
+    if (fallbackToLocal) {
+      try {
+        isLocal.value = true
+        data = await localEngine.createMatch(selectedLang, selectedLevel, selectedMode)
+      } catch (localErr) {
+        triggerError(localErr.message || 'Impossible de lancer le match local')
+        loading.value = false
+        throw localErr
+      }
+    }
+
+    try {
       applyState(data)
       if (data.current_word) {
         wordHistory.value.push({ word: data.current_word, player: -1 })
       }
       return data
-    } catch (e) {
-      triggerError(e.message)
-      throw e
     } finally {
       loading.value = false
     }
@@ -138,6 +201,17 @@ export const useGameStore = defineStore('game', () => {
     const cleaned = word.trim().toLowerCase()
 
     try {
+      if (isLocal.value) {
+        const data = localEngine.playMove(cleaned)
+        wordHistory.value.push({ word: cleaned, player: activePlayer })
+        applyState(data)
+
+        if (mode.value === 'solo' && data.current_word && data.current_word !== cleaned) {
+          wordHistory.value.push({ word: data.current_word, player: 1 })
+        }
+        return true
+      }
+
       const res = await fetch(`${API_BASE}/matches/${matchId.value}/moves`, {
         method: 'POST',
         headers: {
@@ -146,8 +220,8 @@ export const useGameStore = defineStore('game', () => {
         },
         body: JSON.stringify({
           player: activePlayer,
-          word: cleaned
-        })
+          word: cleaned,
+        }),
       })
 
       const data = await safeParseJson(res)
@@ -179,13 +253,22 @@ export const useGameStore = defineStore('game', () => {
     clearError()
 
     try {
+      if (isLocal.value) {
+        const data = localEngine.handleTimeout()
+        applyState(data)
+        if (data.current_word && !data.finished && data.event.includes('part_')) {
+          wordHistory.value.push({ word: data.current_word, player: -1 })
+        }
+        return true
+      }
+
       const res = await fetch(`${API_BASE}/matches/${matchId.value}/timeout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(useAuthStore().csrfToken ? { 'X-CSRF-Token': useAuthStore().csrfToken } : {}),
         },
-        body: JSON.stringify({ player: toMove.value })
+        body: JSON.stringify({ player: toMove.value }),
       })
 
       const data = await safeParseJson(res)
@@ -208,11 +291,17 @@ export const useGameStore = defineStore('game', () => {
   async function requestHint() {
     if (!matchId.value || finished.value) return null
     try {
+      if (isLocal.value) {
+        const data = localEngine.requestHint()
+        currentHint.value = data
+        return data
+      }
+
       const res = await fetch(`${API_BASE}/matches/${matchId.value}/hint`, {
         method: 'POST',
         headers: {
           ...(useAuthStore().csrfToken ? { 'X-CSRF-Token': useAuthStore().csrfToken } : {}),
-        }
+        },
       })
       const data = await safeParseJson(res)
       if (!res.ok) {
@@ -241,9 +330,15 @@ export const useGameStore = defineStore('game', () => {
     finished.value = data.finished
     winner.value = data.winner
     lastEvent.value = data.event
+
+    if (data.finished) {
+      saveToLocalLeaderboard()
+    }
   }
 
   function reset() {
+    localEngine.reset()
+    isLocal.value = false
     matchId.value = null
     wordHistory.value = []
     finished.value = false
@@ -279,6 +374,7 @@ export const useGameStore = defineStore('game', () => {
     shakeInput,
     isMyTurn,
     currentPlayerLabel,
+    isLocal,
     createMatch,
     playMove,
     handleTimeout,

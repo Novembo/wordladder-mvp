@@ -38,6 +38,26 @@ const filters = [
   { code: 'es', label: 'Español', flag: '🇪🇸' }
 ]
 
+function getLocalLeaderboard(lang = 'all') {
+  try {
+    const raw = localStorage.getItem('wl_local_leaderboard')
+    if (!raw) return []
+    const list = JSON.parse(raw)
+    const filtered = lang === 'all' ? list : list.filter((item) => item.lang === lang)
+    return filtered.map((item, idx) => ({
+      rank: idx + 1,
+      player_name: item.player_name || 'Joueur',
+      score: item.score ?? 0,
+      total_moves: item.total_moves ?? 0,
+      lang: item.lang || 'fr',
+      finished_at: item.finished_at || new Date().toISOString(),
+      is_local: true,
+    }))
+  } catch {
+    return []
+  }
+}
+
 async function fetchLeaderboard(lang = 'all') {
   activeLang.value = lang
   loading.value = true
@@ -48,9 +68,15 @@ async function fetchLeaderboard(lang = 'all') {
     const url = lang === 'all' ? `${apiBase}/v1/leaderboard` : `${apiBase}/v1/leaderboard?lang=${lang}`
     const res = await fetch(url)
     if (!res.ok) throw new Error('Impossible de charger le classement')
-    entries.value = await safeParseJson(res)
+    const data = await safeParseJson(res)
+    entries.value = Array.isArray(data) ? data : []
   } catch (err) {
-    error.value = err.message
+    const localEntries = getLocalLeaderboard(lang)
+    if (localEntries.length > 0) {
+      entries.value = localEntries
+    } else {
+      error.value = 'Classement en ligne momentanément indisponible (serveur distant en veille ou hors-ligne).'
+    }
   } finally {
     loading.value = false
   }
@@ -60,10 +86,13 @@ async function checkResetAvailability() {
   try {
     const apiBase = window.API_BASE || ''
     const res = await fetch(`${apiBase}/v1/maintenance/reset`)
-    if (!res.ok) throw new Error('Impossible de vérifier les options de maintenance')
-    resetEnabled.value = (await safeParseJson(res)).enabled
-  } catch (err) {
-    resetError.value = err instanceof Error ? err.message : 'Impossible de vérifier les options de maintenance'
+    if (res.ok) {
+      resetEnabled.value = (await safeParseJson(res)).enabled
+    } else {
+      resetEnabled.value = false
+    }
+  } catch {
+    resetEnabled.value = false
   }
 }
 

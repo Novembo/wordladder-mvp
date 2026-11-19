@@ -15,6 +15,7 @@ const p2Name = computed(() => game.mode === 'solo' ? 'Robot Antigravity' : 'Joue
     <div class="part-badge">
       <span class="part-icon">🎯</span>
       <span class="part-text">Manche {{ game.part }} / 3</span>
+      <span v-if="game.isLocal" class="direct-badge" title="Moteur de jeu 100% autonome dans le navigateur">⚡ Direct</span>
     </div>
 
     <div class="scores-wrapper">
@@ -84,6 +85,17 @@ const p2Name = computed(() => game.mode === 'solo' ? 'Robot Antigravity' : 'Joue
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--accent-secondary);
+}
+
+.direct-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-full);
+  margin-left: 0.35rem;
 }
 
 .scores-wrapper {
