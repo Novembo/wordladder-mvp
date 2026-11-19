@@ -12,13 +12,18 @@
     <script>
       // Permet d'injecter l'URL du backend lors du déploiement (ex: GitHub Actions)
       // Si __API_BASE__ n'est pas remplacé, on utilise une chaîne vide pour le proxy local
-      // IMPORTANT : Si l'origine est GitHub Pages (static), on force l'URL du backend Render si connue
+      // IMPORTANT : Si l'origine est GitHub Pages (static), on force l'URL du backend Render
       const injectedBase = "__API_BASE__";
-      window.API_BASE = injectedBase.startsWith("__") ? "" : injectedBase.replace(/\/$/, "");
+      const isGitHubPages = window.location.hostname.includes("github.io");
       
-      // Patch de sécurité : si on détecte qu'on est sur GitHub Pages et que API_BASE est vide,
-      // on risque le 405 sur les POST. On peut tenter de deviner l'URL ou logger un avertissement.
-      if (window.location.hostname.includes("github.io") && !window.API_BASE) {
+      if (injectedBase.startsWith("__")) {
+        // Fallback automatique vers Render si on est sur GitHub Pages
+        window.API_BASE = isGitHubPages ? "https://wordladder-api.onrender.com" : "";
+      } else {
+        window.API_BASE = injectedBase.replace(/\/$/, "");
+      }
+      
+      if (isGitHubPages && !window.API_BASE) {
         console.warn("Attention : API_BASE non configurée sur un hôte statique. Les requêtes POST risquent d'échouer (405).");
       }
     </script>

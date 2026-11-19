@@ -35,7 +35,13 @@ jobs:
       - name: Installer et compiler le frontend
         run: |
           npm ci
+          # Injection de l'URL de l'API si définie dans les secrets
+          if [ ! -z "${{ secrets.API_BASE_URL }}" ]; then
+            sed -i "s|__API_BASE__|${{ secrets.API_BASE_URL }}|g" index.html
+          fi
           npm run build
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
 
       - uses: actions/configure-pages@v5
 
