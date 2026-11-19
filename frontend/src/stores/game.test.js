@@ -1,9 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useGameStore } from './game'
+import { clearPacksCache, localEngine } from '@/services/localEngine'
 
 describe('game store API failures', () => {
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    localEngine.reset()
+    clearPacksCache()
+  })
 
   it('ignores an early timeout response without changing the game state', async () => {
     setActivePinia(createPinia())
@@ -39,17 +44,19 @@ describe('game store API failures', () => {
     setActivePinia(createPinia())
     const game = useGameStore()
 
-    // Mock pack data
+    // Mock pack data with fully connected 1-letter ladder connections
     const mockPack = {
       lang: 'fr',
       version: '1.0.0',
       graph: {
-        chat: ['char', 'cher'],
-        char: ['chat', 'cher'],
-        cher: ['char', 'chat']
+        bain: ['pain', 'main', 'gain', 'nain'],
+        pain: ['bain', 'main', 'gain', 'nain'],
+        main: ['bain', 'pain', 'gain', 'nain'],
+        gain: ['bain', 'pain', 'main', 'nain'],
+        nain: ['bain', 'pain', 'main', 'gain']
       },
       levels: {
-        basic: ['chat', 'char', 'cher']
+        basic: ['bain', 'pain', 'main', 'gain', 'nain']
       }
     }
 
@@ -84,9 +91,10 @@ describe('game store API failures', () => {
     expect(game.currentWord).toBeDefined()
     expect(game.lives).toEqual([3, 3])
 
-    // Try a valid move
+    // Try a valid move directly from current word's legal neighbors
     const current = game.currentWord
-    const nextMove = current === 'chat' ? 'char' : 'chat'
+    const validMoves = mockPack.graph[current] || []
+    const nextMove = validMoves[0]
     const success = await game.playMove(nextMove)
     expect(success).toBe(true)
     expect(game.currentWord).toBe(nextMove)

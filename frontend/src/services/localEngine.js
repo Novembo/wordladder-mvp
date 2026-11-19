@@ -165,6 +165,10 @@ export const SYNONYMS_DB = {
 
 const packsCache = new Map()
 
+export function clearPacksCache() {
+  packsCache.clear()
+}
+
 export function stripAccents(str) {
   if (!str) return ''
   return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
@@ -537,5 +541,9 @@ export const localEngine = {
 
   reset() {
     activeMatch = null
+  },
+
+  clearCache() {
+    packsCache.clear()
   },
 }
