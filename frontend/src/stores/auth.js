@@ -13,9 +13,12 @@ async function safeParseJson(response) {
     return await response.json()
   }
   const text = await response.text()
-  // Détection des erreurs Nginx/Proxy (405, 502, etc.) qui renvoient du HTML
   if (text.includes('<html') || response.status === 405) {
-    return { detail: `Erreur serveur (${response.status}): La méthode HTTP n'est pas autorisée ou le backend est injoignable.` }
+    const serverType = response.headers.get('server') || 'inconnu'
+    return { 
+      detail: `Erreur serveur (${response.status}): Méthode non autorisée sur ${response.url}. ` +
+              `Serveur détecté: ${serverType}. Vérifiez que le backend FastAPI est bien lancé sur le port 8000.` 
+    }
   }
   return { detail: text || `Erreur serveur (${response.status})` }
 }

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
@@ -35,6 +35,7 @@ def create_app() -> FastAPI:
         version="1.0.0",
         description="Educational Word Ladder game API with local pass-and-play, vocabulary levels, and multilingual dictionaries.",
         lifespan=lifespan,
+        redirect_slashes=False,
     )
 
     # Enable CORS for local Vite development & mobile devices
@@ -52,6 +53,15 @@ def create_app() -> FastAPI:
     app.include_router(packs.router)
     app.include_router(leaderboard.router)
     app.include_router(maintenance.router)
+
+    @app.middleware("http")
+    async def log_requests(request: Request, call_next):
+        import time
+        start_time = time.time()
+        response = await call_next(request)
+        process_time = (time.time() - start_time) * 1000
+        print(f"Request: {request.method} {request.url.path} - Status: {response.status_code} - {process_time:.2f}ms")
+        return response
 
     @app.get("/health", response_model=HealthResponse)
     async def health():

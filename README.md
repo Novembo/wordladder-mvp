@@ -42,7 +42,7 @@ Set-Location backend
 python -m pip install -r requirements.txt
 Copy-Item .env.example .env
 $env:WL_ENVIRONMENT = "development"
-python -m uvicorn app.main:app --reload --port 8000
+python manage.py runserver
 ```
 
 Dans un second terminal :
@@ -60,7 +60,7 @@ Vite sert l’application sur `http://localhost:5173` et relaie les appels API v
 Depuis `backend/` :
 
 ```bash
-python -m pytest -q
+python manage.py test
 ```
 
 Depuis `frontend/` :

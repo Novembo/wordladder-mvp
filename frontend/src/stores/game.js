@@ -16,7 +16,13 @@ async function safeParseJson(response) {
   // Si ce n'est pas du JSON, on renvoie un objet avec le texte brut ou une erreur par défaut
   const text = await response.text()
   if (text.includes('<html') || response.status === 405) {
-    return { detail: { message: `Erreur serveur (${response.status}): Méthode non autorisée. Vérifiez la configuration du proxy.` } }
+    const serverType = response.headers.get('server') || 'inconnu'
+    return { 
+      detail: { 
+        message: `Erreur serveur (${response.status}): Méthode non autorisée sur ${response.url}. ` +
+                 `Serveur: ${serverType}. Vérifiez le port 8000 et le proxy Vite.` 
+      } 
+    }
   }
   return { detail: { message: text || `Erreur serveur (${response.status})` } }
 }
