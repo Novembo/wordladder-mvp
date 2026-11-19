@@ -15,6 +15,9 @@ async function safeParseJson(response) {
   }
   // Si ce n'est pas du JSON, on renvoie un objet avec le texte brut ou une erreur par défaut
   const text = await response.text()
+  if (text.includes('<html') || response.status === 405) {
+    return { detail: { message: `Erreur serveur (${response.status}): Méthode non autorisée. Vérifiez la configuration du proxy.` } }
+  }
   return { detail: { message: text || `Erreur serveur (${response.status})` } }
 }
 
@@ -200,7 +203,10 @@ export const useGameStore = defineStore('game', () => {
     if (!matchId.value || finished.value) return null
     try {
       const res = await fetch(`${API_BASE}/matches/${matchId.value}/hint`, {
-        method: 'POST'
+        method: 'POST',
+        headers: {
+          ...(useAuthStore().csrfToken ? { 'X-CSRF-Token': useAuthStore().csrfToken } : {}),
+        }
       })
       const data = await safeParseJson(res)
       if (!res.ok) {

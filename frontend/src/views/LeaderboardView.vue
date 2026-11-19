@@ -21,6 +21,9 @@ async function safeParseJson(response) {
     return await response.json()
   }
   const text = await response.text()
+  if (text.includes('<html') || response.status === 405) {
+    return { detail: `Erreur serveur (${response.status}): Méthode non autorisée.` }
+  }
   return { detail: text || `Erreur serveur (${response.status})` }
 }
 

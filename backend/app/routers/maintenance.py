@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.models import MatchRecord, MoveRecord
-from app.routers.auth import AuthContext, require_csrf
+from app.routers.auth import AuthContext, require_auth
 from app.schemas import DatabaseResetResponse, ResetAvailability
 
 router = APIRouter(prefix="/v1/maintenance", tags=["development"])
@@ -21,7 +21,7 @@ async def reset_availability():
 
 @router.post("/reset", response_model=DatabaseResetResponse)
 async def reset_match_history(
-    _auth: AuthContext | None = Depends(require_csrf),
+    _auth: AuthContext = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
     if not settings.db_reset_enabled:

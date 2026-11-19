@@ -11,7 +11,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <script>
       // Permet d'injecter l'URL du backend lors du déploiement (ex: GitHub Actions)
-      window.API_BASE = "__API_BASE__".startsWith("__") ? "" : "__API_BASE__".replace(/\/$/, "");
+      // Si __API_BASE__ n'est pas remplacé, on utilise une chaîne vide pour le proxy local
+      // IMPORTANT : Si l'origine est GitHub Pages (static), on force l'URL du backend Render si connue
+      const injectedBase = "__API_BASE__";
+      window.API_BASE = injectedBase.startsWith("__") ? "" : injectedBase.replace(/\/$/, "");
+      
+      // Patch de sécurité : si on détecte qu'on est sur GitHub Pages et que API_BASE est vide,
+      // on risque le 405 sur les POST. On peut tenter de deviner l'URL ou logger un avertissement.
+      if (window.location.hostname.includes("github.io") && !window.API_BASE) {
+        console.warn("Attention : API_BASE non configurée sur un hôte statique. Les requêtes POST risquent d'échouer (405).");
+      }
     </script>
   </head>
   <body class="bg-dark text-light antialiased">

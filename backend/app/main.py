@@ -42,8 +42,8 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["Content-Type", "X-CSRF-Token"],
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     # Include routers
@@ -53,7 +53,17 @@ def create_app() -> FastAPI:
     app.include_router(leaderboard.router)
     app.include_router(maintenance.router)
 
-    @app.get("/")
+    @app.get("/health", response_model=HealthResponse)
+    async def health():
+        redis_client = await get_redis()
+        return {
+            "status": "healthy",
+            "redis": "connected" if redis_client else "in-memory-fallback",
+            "database": "sqlite-aiosqlite",
+            "languages": settings.supported_langs,
+        }
+
+    @app.api_route("/", methods=["GET", "HEAD", "OPTIONS"])
     async def root():
         return {
             "title": "Word Ladder EdTech API",
@@ -66,16 +76,6 @@ def create_app() -> FastAPI:
                 "classement": "/v1/leaderboard",
                 "matchs": "/v1/matches",
             }
-        }
-
-    @app.get("/health", response_model=HealthResponse)
-    async def health():
-        redis_client = await get_redis()
-        return {
-            "status": "healthy",
-            "redis": "connected" if redis_client else "in-memory-fallback",
-            "database": "sqlite-aiosqlite",
-            "languages": settings.supported_langs,
         }
 
     return app

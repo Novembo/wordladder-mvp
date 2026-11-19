@@ -110,6 +110,7 @@ class Match:
             self.current = chosen
         else:
             # 2. Subsequent rounds strictly filter for the same length N
+            # Ensure we only pick words that actually have neighbors (playable)
             pool = [
                 w for w in self.pack.pool(self.level)
                 if len(w) == self.word_length and w not in self.used and len(self.available_from(w)) >= MIN_START_NEIGHBORS

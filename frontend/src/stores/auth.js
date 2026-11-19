@@ -13,6 +13,10 @@ async function safeParseJson(response) {
     return await response.json()
   }
   const text = await response.text()
+  // Détection des erreurs Nginx/Proxy (405, 502, etc.) qui renvoient du HTML
+  if (text.includes('<html') || response.status === 405) {
+    return { detail: `Erreur serveur (${response.status}): La méthode HTTP n'est pas autorisée ou le backend est injoignable.` }
+  }
   return { detail: text || `Erreur serveur (${response.status})` }
 }
 

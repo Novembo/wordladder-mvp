@@ -16,15 +16,15 @@ except (ImportError, ValueError):
     from ..schemas import PackInfo
     from ..services.graph_service import get_or_load_pack
 
-router = APIRouter(tags=["packs"])
+router = APIRouter(prefix="/v1", tags=["packs"])
 
 
-@router.get("/v1/levels")
+@router.get("/levels")
 def get_levels():
     return {"time_limits_seconds": TIME_LIMITS}
 
 
-@router.get("/v1/packs/{lang}/info", response_model=PackInfo)
+@router.get("/packs/{lang}/info", response_model=PackInfo)
 async def get_pack_info(lang: str):
     if lang not in settings.supported_langs:
         raise HTTPException(status_code=404, detail=f"Unsupported language: {lang}")
@@ -38,7 +38,7 @@ async def get_pack_info(lang: str):
     }
 
 
-@router.get("/v1/packs/{lang}")
+@router.get("/packs/{lang}")
 async def download_pack(lang: str):
     """Download full pack JSON for offline client caching."""
     if lang not in settings.supported_langs:

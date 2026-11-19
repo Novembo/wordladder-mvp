@@ -196,9 +196,12 @@ class MatchService:
             # Execute move
             state = match.play(player, word)
 
-        # Persist MoveRecord if it was a valid move (not a forced timeout)
+        # Persist MoveRecord if it was a valid move (even if it ends the part)
         async with async_session_factory() as session:
-            if not state.get("event", "").startswith("life_lost") and not state.get("event", "").startswith("part_"):
+            event = state.get("event", "")
+            is_valid_move = "move_ok" in event or "dead_end" in event
+            
+            if is_valid_move:
                 move_rec = MoveRecord(
                     match_id=match_id,
                     player=player,
@@ -211,7 +214,8 @@ class MatchService:
             record = await session.get(MatchRecord, match_id)
             if record:
                 record.scores = match.scores
-                record.total_moves = data.get("total_moves", 0) + (1 if "move_ok" in state.get("event", "") else 0)
+                if is_valid_move:
+                    record.total_moves = (record.total_moves or 0) + 1
                 if match.finished:
                     record.finished_at = _utcnow()
                     record.winner = match.winner
@@ -233,7 +237,7 @@ class MatchService:
             "finished": match.finished,
             "winner": match.winner,
             "last_event": match.last_event,
-            "total_moves": data.get("total_moves", 0) + 1,
+            "total_moves": (data.get("total_moves", 0) + 1) if is_valid_move else data.get("total_moves", 0),
         })
         await cache_set(f"match:{match.id}", json.dumps(data), ex=MATCH_TTL)
 

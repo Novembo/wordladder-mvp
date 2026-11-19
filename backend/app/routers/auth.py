@@ -252,3 +252,5 @@ async def logout(
         httponly=True,
         samesite="lax",
     )
+    # Ensure any frontend proxy also clears its context if needed
+    return Response(status_code=204)
